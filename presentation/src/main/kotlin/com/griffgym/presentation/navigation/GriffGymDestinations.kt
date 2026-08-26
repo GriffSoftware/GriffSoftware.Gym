@@ -5,6 +5,7 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.griffgym.presentation.components.BottomNavItem
@@ -15,11 +16,25 @@ object Routes {
     const val STATS = "stats"
     const val CALC = "calc"
     const val HISTORY = "history"
+    const val CYCLES = "cycles"
+
+    /** The end-of-cycle decision. Reached from Home, never from a tab. */
+    const val CYCLE_REVIEW = "cycles/review"
 
     const val SESSION_ID_ARG = "sessionId"
     const val SESSION = "session/{$SESSION_ID_ARG}"
 
+    const val CYCLE_ID_ARG = "cycleId"
+
+    /**
+     * Kept under `detail/` rather than `cycles/{cycleId}` so it can never collide with
+     * [CYCLE_REVIEW] — a route pattern that would happily match the literal "review".
+     */
+    const val CYCLE_DETAIL = "cycles/detail/{$CYCLE_ID_ARG}"
+
     fun session(sessionId: Long): String = "session/$sessionId"
+
+    fun cycleDetail(cycleId: Long): String = "cycles/detail/$cycleId"
 }
 
 val BottomNavDestinations: List<BottomNavItem> = listOf(
@@ -35,9 +50,14 @@ data class DrawerDestination(
     val route: String,
 )
 
+/**
+ * The drawer, not a fifth tab: the bottom bar stays at Home / Log / Stats / Calc, which are
+ * the four things a lifter reaches for mid-session. Cycles is a between-blocks screen.
+ */
 val DrawerDestinations: List<DrawerDestination> = listOf(
     DrawerDestination("Home", Icons.Filled.Home, Routes.HOME),
     DrawerDestination("Training log", Icons.Filled.FitnessCenter, Routes.LOG),
+    DrawerDestination("Cycles", Icons.Filled.Repeat, Routes.CYCLES),
     DrawerDestination("History", Icons.Filled.History, Routes.HISTORY),
     DrawerDestination("Statistics", Icons.Filled.BarChart, Routes.STATS),
     DrawerDestination("1RM calculator", Icons.Filled.Calculate, Routes.CALC),

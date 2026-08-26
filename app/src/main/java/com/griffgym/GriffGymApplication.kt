@@ -12,8 +12,10 @@ import javax.inject.Inject
 /**
  * Composition root.
  *
- * Seeding runs once here, off the main thread, and is idempotent — every screen observes
- * Room through a Flow, so the UI simply fills in as soon as the first run finishes.
+ * Seeding the exercise catalogue runs once here, off the main thread, and is idempotent.
+ * The lifter's own data — reference maxes and the training block — is not seeded: it comes
+ * from first-run setup, and generating a program inserts any catalogue entry it still
+ * needs, so nothing depends on this having finished first.
  */
 @HiltAndroidApp
 class GriffGymApplication : Application() {

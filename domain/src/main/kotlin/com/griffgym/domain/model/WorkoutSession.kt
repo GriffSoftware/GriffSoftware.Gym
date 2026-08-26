@@ -138,6 +138,15 @@ sealed interface CurrentWorkout {
     /** Nothing is running; this is the next unit of the program. */
     data class Planned(val template: WorkoutTemplate) : CurrentWorkout
 
-    /** Every workout of the program has been completed. */
-    data object ProgramCompleted : CurrentWorkout
+    /**
+     * Every unit of [cycle] has been completed and the lifter has not decided on the next
+     * cycle yet.
+     *
+     * This is a state the app waits in, not a state it passes through: the next cycle is
+     * never created without the lifter explicitly asking for it.
+     */
+    data class CycleCompleted(val cycle: TrainingCycle) : CurrentWorkout
+
+    /** Nothing to train and no cycle to review — an installation with no plan at all. */
+    data object NoProgram : CurrentWorkout
 }

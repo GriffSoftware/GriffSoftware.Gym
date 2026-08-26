@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.griffgym.application.StartWorkoutUseCaseTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-26T10:01:41.873Z" hostname="IN-LAP-143.local" time="0.003">
-  <properties/>
-  <testcase name="starting twice resumes the running session instead of creating another" classname="com.griffgym.application.StartWorkoutUseCaseTest" time="0.001"/>
-  <testcase name="snapshots the current template into a new session" classname="com.griffgym.application.StartWorkoutUseCaseTest" time="0.001"/>
-  <testcase name="there is nothing to start once the program is finished" classname="com.griffgym.application.StartWorkoutUseCaseTest" time="0.001"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

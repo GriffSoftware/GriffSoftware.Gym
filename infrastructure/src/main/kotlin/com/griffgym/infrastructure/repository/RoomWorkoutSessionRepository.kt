@@ -33,6 +33,8 @@ class RoomWorkoutSessionRepository @Inject constructor(
     override suspend fun getActiveSession(): WorkoutSession? =
         sessionDao.getByStatus(WorkoutStatus.IN_PROGRESS)?.toDomain()
 
+    override suspend fun hasAnySession(): Boolean = sessionDao.sessionCount() > 0
+
     override fun observeSession(id: Long): Flow<WorkoutSession?> =
         sessionDao.observeById(id).map { it?.toDomain() }
 

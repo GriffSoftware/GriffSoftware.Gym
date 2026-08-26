@@ -22,10 +22,25 @@ data class HeroCardState(
     val isDeload: Boolean,
     val mode: HeroMode,
     val exercises: List<HeroExercise>,
+    /** "CYCLE 3" — context above the week and day. Absent only before the first cycle. */
+    val cycleLabel: String? = null,
     val activeSessionId: Long? = null,
 )
 
-enum class HeroMode { READY, IN_PROGRESS, PROGRAM_COMPLETE }
+enum class HeroMode {
+    READY,
+    IN_PROGRESS,
+
+    /**
+     * The cycle's last workout is logged and the next one has not been decided on. Kept
+     * apart from the other modes because it is the one state whose call to action leaves
+     * the training flow entirely.
+     */
+    CYCLE_COMPLETE,
+
+    /** No plan at all — nothing to start and nothing to review. */
+    NO_PROGRAM,
+}
 
 @Immutable
 data class HeroExercise(

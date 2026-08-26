@@ -3,6 +3,8 @@ package com.griffgym.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -44,6 +46,12 @@ fun NumericInput(
     placeholder: String = "",
     enabled: Boolean = true,
     allowDecimal: Boolean = true,
+    /**
+     * Off everywhere a weight is entered, because a bar cannot hold less than nothing. On
+     * for a *change* to a reference max, where dropping it after illness or a bad block is a
+     * decision the app has to be able to accept.
+     */
+    allowNegative: Boolean = false,
     isError: Boolean = false,
     highlighted: Boolean = false,
     imeAction: ImeAction = ImeAction.Next,
@@ -82,7 +90,9 @@ fun NumericInput(
         CompositionLocalProvider(LocalTextSelectionColors provides selectionColors) {
             BasicTextField(
                 value = value,
-                onValueChange = { raw -> onValueChange(raw.filterNumeric(allowDecimal)) },
+                onValueChange = { raw ->
+                    onValueChange(raw.filterNumeric(allowDecimal, allowNegative))
+                },
                 enabled = enabled,
                 singleLine = true,
                 textStyle = textStyle.copy(color = contentColor, textAlign = TextAlign.Center),
@@ -115,17 +125,80 @@ fun NumericInput(
 }
 
 /**
- * Keeps only digits and at most one decimal separator. The comma is normalised to a dot
- * on the way in so the domain never has to guess at a locale.
+ * An input in its own sunken, outlined well with a caps label above it — the form treatment
+ * the calculator and first-run setup both use.
  */
-private fun String.filterNumeric(allowDecimal: Boolean): String {
+@Composable
+fun LabelledField(
+    label: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val colors = GriffGymTheme.colors
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.surfaceVariant)
+            .border(GriffGymTheme.dimens.borderWidth, colors.outlineStrong)
+            .padding(12.dp),
+    ) {
+        FieldLabel(label)
+        Spacer(Modifier.height(8.dp))
+        content()
+    }
+}
+
+/**
+ * The "how much, for how many reps" pair that feeds every one rep max estimate. Shared so
+ * the calculator and first-run setup ask the question in exactly the same shape.
+ */
+@Composable
+fun WeightAndRepsFields(
+    weight: String,
+    onWeightChange: (String) -> Unit,
+    reps: Int,
+    onRepsChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        LabelledField(label = "Weight (kg)") {
+            NumericInput(
+                value = weight,
+                onValueChange = onWeightChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = "0",
+                enabled = enabled,
+                textStyle = GriffGymTheme.typography.dataLarge,
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+        LabelledField(label = "Reps") {
+            NumericStepper(
+                value = reps,
+                onValueChange = onRepsChange,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/**
+ * Keeps only digits, at most one decimal separator, and — when allowed — a single leading
+ * minus. The comma is normalised to a dot on the way in so the domain never has to guess at
+ * a locale.
+ */
+private fun String.filterNumeric(allowDecimal: Boolean, allowNegative: Boolean): String {
     val normalised = replace(',', '.')
     val builder = StringBuilder()
     var seenSeparator = false
-    normalised.forEach { char ->
+    normalised.forEachIndexed { index, char ->
         when {
             char.isDigit() -> builder.append(char)
-            allowDecimal && char == '.' && !seenSeparator && builder.isNotEmpty() -> {
+            // A lone "-" is kept so the field is usable while it is being typed; parsing
+            // rejects it until a number follows.
+            allowNegative && char == '-' && index == 0 -> builder.append(char)
+            allowDecimal && char == '.' && !seenSeparator && builder.hasDigits() -> {
                 seenSeparator = true
                 builder.append(char)
             }
@@ -133,3 +206,5 @@ private fun String.filterNumeric(allowDecimal: Boolean): String {
     }
     return builder.toString()
 }
+
+private fun StringBuilder.hasDigits(): Boolean = any { it.isDigit() }

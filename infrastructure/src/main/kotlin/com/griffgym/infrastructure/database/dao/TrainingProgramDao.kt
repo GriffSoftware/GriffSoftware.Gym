@@ -37,6 +37,17 @@ interface TrainingProgramDao {
     suspend fun getActiveProgramRow(): TrainingProgramEntity?
 
     @Transaction
+    @Query("SELECT * FROM training_program WHERE cycleId = :cycleId LIMIT 1")
+    suspend fun getProgramOfCycle(cycleId: Long): TrainingProgramWithWeeks?
+
+    /**
+     * Stands every program down. Called just before a new one is inserted as active, so
+     * there is never a moment where two programs answer `WHERE isActive = 1`.
+     */
+    @Query("UPDATE training_program SET isActive = 0")
+    suspend fun deactivateAllPrograms()
+
+    @Transaction
     @Query(
         "SELECT $TEMPLATE_DETAIL_COLUMNS $TEMPLATE_DETAIL_FROM " +
             "JOIN program_progress p ON p.currentWorkoutTemplateId = wt.id",

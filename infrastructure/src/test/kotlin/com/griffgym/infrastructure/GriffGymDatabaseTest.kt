@@ -7,6 +7,7 @@ import com.griffgym.domain.model.ExerciseCategory
 import com.griffgym.domain.model.ExerciseType
 import com.griffgym.domain.model.Rpe
 import com.griffgym.domain.model.SetResult
+import com.griffgym.domain.model.StrengthBlockTemplate
 import com.griffgym.domain.model.TrainingVolume
 import com.griffgym.domain.model.Weight
 import com.griffgym.domain.model.WorkoutStatus
@@ -55,7 +56,10 @@ class GriffGymDatabaseTest {
         sessionRepository = RoomWorkoutSessionRepository(database, database.workoutSessionDao())
         referenceMaxRepository = RoomReferenceMaxRepository(database.referenceMaxDao())
 
-        DatabaseSeeder(database, clock).seedIfNeeded()
+        DatabaseSeeder(database).seedIfNeeded()
+        // What first-run setup does on a fresh install: cycle 1, and the block that belongs
+        // to it. The seeder no longer invents a plan.
+        cycleRepository(database).startCycleFrom(StrengthBlockTemplate.baselineReferenceMaxes, clock)
     }
 
     @After
@@ -64,7 +68,7 @@ class GriffGymDatabaseTest {
     }
 
     @Test
-    fun `seeds the six week program with eighteen units`() = runTest {
+    fun `persists the six week program with eighteen units`() = runTest {
         val program = programRepository.getActiveProgram()!!
 
         assertEquals(6, program.weeks.size)
@@ -73,7 +77,7 @@ class GriffGymDatabaseTest {
     }
 
     @Test
-    fun `seeds week one day one exactly as prescribed`() = runTest {
+    fun `persists week one day one exactly as prescribed`() = runTest {
         val template = programRepository.getCurrentWorkoutTemplate()!!
 
         assertEquals(1, template.weekNumber)
@@ -93,7 +97,7 @@ class GriffGymDatabaseTest {
     }
 
     @Test
-    fun `seeds accessory work without a prescribed load`() = runTest {
+    fun `persists accessory work without a prescribed load`() = runTest {
         val template = programRepository.getCurrentWorkoutTemplate()!!
         val accessory = template.exercises.first { it.type == ExerciseType.ACCESSORY }
 
@@ -114,7 +118,7 @@ class GriffGymDatabaseTest {
     }
 
     @Test
-    fun `seeds the reference maxes from the sheet`() = runTest {
+    fun `stores the reference maxes the block was generated from`() = runTest {
         val maxes = referenceMaxRepository.observeReferenceMaxes().first()
             .associate { it.category to it.weight.format() }
 
@@ -124,12 +128,11 @@ class GriffGymDatabaseTest {
     }
 
     @Test
-    fun `seeding twice does not duplicate anything`() = runTest {
-        DatabaseSeeder(database, clock).seedIfNeeded()
+    fun `seeding twice does not duplicate the catalogue`() = runTest {
+        DatabaseSeeder(database).seedIfNeeded()
 
-        assertEquals(1, database.trainingProgramDao().programCount())
         assertEquals(12, database.exerciseDao().count())
-        assertEquals(3, database.referenceMaxDao().count())
+        assertEquals(1, database.trainingProgramDao().programCount())
     }
 
     @Test

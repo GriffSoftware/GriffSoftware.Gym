@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.griffgym.domain.model.CycleStatus
 import com.griffgym.domain.model.ExerciseCategory
 import com.griffgym.domain.model.ExerciseType
 import java.time.Instant
@@ -18,9 +19,51 @@ data class ExerciseEntity(
     val category: ExerciseCategory,
 )
 
-@Entity(tableName = "training_program")
+/**
+ * One six week run through the block.
+ *
+ * The reference maxes are stored as three columns rather than a serialised blob: they are
+ * three numbers with three fixed meanings, and a database browser should be able to answer
+ * "what was cycle 4 built on?" without decoding anything.
+ */
+@Entity(
+    tableName = "training_cycle",
+    indices = [Index(value = ["cycleNumber"], unique = true)],
+)
+data class TrainingCycleEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val cycleNumber: Int,
+    val status: CycleStatus,
+    val startedAt: Instant,
+    /** Set when the last scheduled workout was completed, never by the calendar. */
+    val completedAt: Instant?,
+    val squatKg: Double,
+    val benchPressKg: Double,
+    val deadliftKg: Double,
+    val createdAt: Instant,
+)
+
+/**
+ * The generated plan of one cycle.
+ *
+ * A program belongs to a cycle, not the other way round: the cycle is what the lifter names,
+ * numbers and compares, and deleting one takes its plan with it.
+ */
+@Entity(
+    tableName = "training_program",
+    foreignKeys = [
+        ForeignKey(
+            entity = TrainingCycleEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["cycleId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("cycleId")],
+)
 data class TrainingProgramEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val cycleId: Long,
     val name: String,
     val createdAt: Instant,
     val isActive: Boolean,

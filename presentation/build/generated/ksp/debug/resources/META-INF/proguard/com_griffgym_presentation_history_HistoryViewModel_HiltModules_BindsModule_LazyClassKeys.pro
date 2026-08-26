@@ -1,1 +1,0 @@
--keep,allowobfuscation,allowshrinking class com.griffgym.presentation.history.HistoryViewModel

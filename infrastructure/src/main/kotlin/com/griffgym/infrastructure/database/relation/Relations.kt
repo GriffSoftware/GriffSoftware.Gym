@@ -68,6 +68,22 @@ data class TrainingProgramWithWeeks(
     val weeks: List<TrainingWeekWithWorkouts>,
 )
 
+/**
+ * One week of a cycle with its planned and completed workout counts.
+ *
+ * A projection rather than an entity: nothing here is stored, it is counted from the plan
+ * and the training log every time it is read, so cycle progress can never drift away from
+ * what was actually logged.
+ */
+data class CycleWeekProgressRow(
+    val cycleId: Long,
+    val weekNumber: Int,
+    val label: String,
+    val isDeload: Boolean,
+    val plannedWorkouts: Int,
+    val completedWorkouts: Int,
+)
+
 data class ExerciseLogWithDetails(
     @Embedded val log: ExerciseLogEntity,
     @Relation(parentColumn = "exerciseId", entityColumn = "id")

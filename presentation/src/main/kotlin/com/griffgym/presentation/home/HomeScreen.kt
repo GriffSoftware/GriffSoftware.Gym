@@ -1,5 +1,6 @@
 package com.griffgym.presentation.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +30,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.griffgym.domain.model.ExerciseCategory
 import com.griffgym.presentation.components.CardHeader
+import com.griffgym.presentation.components.DeloadBadgeLabel
+import com.griffgym.presentation.components.accentFor
 import com.griffgym.presentation.components.GriffGymBadge
 import com.griffgym.presentation.components.GriffGymCard
 import com.griffgym.presentation.components.GriffGymPrimaryButton
@@ -42,6 +46,8 @@ import com.griffgym.presentation.theme.GriffGymTheme
 @Composable
 fun HomeRoute(
     onOpenWorkout: (Long) -> Unit,
+    onOpenCycles: () -> Unit,
+    onReviewCycle: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -55,13 +61,21 @@ fun HomeRoute(
         }
     }
 
-    HomeScreen(state = state, onEvent = viewModel::onEvent, modifier = modifier)
+    HomeScreen(
+        state = state,
+        onEvent = viewModel::onEvent,
+        onOpenCycles = onOpenCycles,
+        onReviewCycle = onReviewCycle,
+        modifier = modifier,
+    )
 }
 
 @Composable
 fun HomeScreen(
     state: HomeUiState,
     onEvent: (HomeUiEvent) -> Unit,
+    onOpenCycles: () -> Unit,
+    onReviewCycle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = GriffGymTheme.colors
@@ -80,7 +94,14 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(GriffGymTheme.dimens.sectionSpacing),
     ) {
         state.hero?.let { hero ->
-            item(key = "hero") { HeroCard(hero = hero, onEvent = onEvent) }
+            item(key = "hero") {
+                HeroCard(
+                    hero = hero,
+                    onEvent = onEvent,
+                    onOpenCycles = onOpenCycles,
+                    onReviewCycle = onReviewCycle,
+                )
+            }
         }
 
         item(key = "volume") {
@@ -119,12 +140,7 @@ fun HomeScreen(
                     ReferenceMaxRow(
                         code = item.code,
                         weight = item.weight,
-                        accent = when (item.category) {
-                            ExerciseCategory.SQUAT -> colors.squat
-                            ExerciseCategory.DEADLIFT -> colors.deadlift
-                            ExerciseCategory.BENCH_PRESS -> colors.bench
-                            ExerciseCategory.ACCESSORY -> colors.outlineStrong
-                        },
+                        accent = colors.accentFor(item.category),
                         onClick = { onEvent(HomeUiEvent.EditReferenceMax(item.category)) },
                     )
                     if (index != state.referenceMaxes.lastIndex) Spacer(Modifier.height(8.dp))
@@ -150,8 +166,15 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HeroCard(hero: HeroCardState, onEvent: (HomeUiEvent) -> Unit) {
+private fun HeroCard(
+    hero: HeroCardState,
+    onEvent: (HomeUiEvent) -> Unit,
+    onOpenCycles: () -> Unit,
+    onReviewCycle: () -> Unit,
+) {
     val colors = GriffGymTheme.colors
+    val isCycleComplete = hero.mode == HeroMode.CYCLE_COMPLETE
+    val hasWorkout = hero.mode == HeroMode.READY || hero.mode == HeroMode.IN_PROGRESS
 
     GriffGymCard {
         Row(
@@ -161,19 +184,30 @@ private fun HeroCard(hero: HeroCardState, onEvent: (HomeUiEvent) -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 when {
-                    hero.mode == HeroMode.PROGRAM_COMPLETE ->
-                        GriffGymBadge("PROGRAM COMPLETE", filled = true)
-                    hero.isDeload -> GriffGymBadge("DELOAD", filled = true)
+                    isCycleComplete -> GriffGymBadge("CYCLE COMPLETE", filled = true)
+                    // The deload week says outright how light it is, so nobody spends a
+                    // recovery week wondering whether the numbers are a mistake.
+                    hero.isDeload -> GriffGymBadge(DeloadBadgeLabel, filled = true)
                     hero.mode == HeroMode.IN_PROGRESS ->
                         GriffGymBadge("IN PROGRESS", color = colors.primary)
+                    hero.mode == HeroMode.NO_PROGRAM ->
+                        GriffGymBadge("NO PROGRAM", color = colors.textTertiary)
                     else -> GriffGymBadge("READY", color = colors.textTertiary)
                 }
-                Spacer(Modifier.height(8.dp))
+
+                hero.cycleLabel?.let { label ->
+                    Spacer(Modifier.height(8.dp))
+                    CycleContextLabel(label = label, onClick = onOpenCycles)
+                }
+
+                Spacer(Modifier.height(if (hero.cycleLabel != null) 2.dp else 8.dp))
                 Text(
-                    text = if (hero.mode == HeroMode.PROGRAM_COMPLETE) {
-                        "Program complete"
-                    } else {
+                    text = if (hasWorkout) {
                         Format.weekAndDayTitle(hero.weekNumber, hero.dayNumber)
+                    } else if (isCycleComplete) {
+                        "Cycle complete"
+                    } else {
+                        "Nothing planned"
                     },
                     style = GriffGymTheme.typography.headline,
                     color = colors.primary,
@@ -186,8 +220,8 @@ private fun HeroCard(hero: HeroCardState, onEvent: (HomeUiEvent) -> Unit) {
                 )
             }
 
-            if (hero.mode != HeroMode.PROGRAM_COMPLETE) {
-                GriffGymPrimaryButton(
+            when {
+                hasWorkout -> GriffGymPrimaryButton(
                     text = if (hero.mode == HeroMode.IN_PROGRESS) "CONTINUE" else "START",
                     icon = Icons.Filled.PlayArrow,
                     onClick = {
@@ -199,6 +233,14 @@ private fun HeroCard(hero: HeroCardState, onEvent: (HomeUiEvent) -> Unit) {
                             },
                         )
                     },
+                    contentPaddingHorizontal = 14.dp,
+                )
+
+                // The one thing left to do at the end of a cycle. Without it this card was a
+                // dead end: a badge saying "done" and nowhere to go.
+                isCycleComplete -> GriffGymPrimaryButton(
+                    text = "REVIEW CYCLE",
+                    onClick = onReviewCycle,
                     contentPaddingHorizontal = 14.dp,
                 )
             }
@@ -220,11 +262,85 @@ private fun HeroCard(hero: HeroCardState, onEvent: (HomeUiEvent) -> Unit) {
     }
 }
 
+/** "CYCLE 3 ›" — small, quiet context that doubles as the way into the cycles screen. */
+@Composable
+private fun CycleContextLabel(label: String, onClick: () -> Unit) {
+    val colors = GriffGymTheme.colors
+    Row(
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = GriffGymTheme.typography.labelSmall,
+            color = colors.textSecondary,
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = colors.textTertiary,
+            modifier = Modifier
+                .padding(start = 2.dp)
+                .size(14.dp),
+        )
+    }
+}
+
 @Preview(widthDp = 390, heightDp = 844, backgroundColor = 0xFF14120C, showBackground = true)
 @Composable
 private fun HomeScreenPreview() {
     GriffGymTheme {
-        HomeScreen(state = PreviewHomeState, onEvent = {})
+        HomeScreen(state = PreviewHomeState, onEvent = {}, onOpenCycles = {}, onReviewCycle = {})
+    }
+}
+
+@Preview(widthDp = 390, heightDp = 400, backgroundColor = 0xFF14120C, showBackground = true)
+@Composable
+private fun HomeScreenDeloadPreview() {
+    GriffGymTheme {
+        HomeScreen(
+            state = PreviewHomeState.copy(
+                hero = PreviewHomeState.hero?.copy(
+                    weekNumber = 6,
+                    dayNumber = 1,
+                    title = "Deload — Squat / Bench",
+                    isDeload = true,
+                    exercises = listOf(
+                        HeroExercise("Przysiad", "DELOAD", isTopSet = false, scheme = "3x3x105kg"),
+                        HeroExercise("Ławka", "DELOAD", isTopSet = false, scheme = "3x5x85kg"),
+                    ),
+                ),
+            ),
+            onEvent = {},
+            onOpenCycles = {},
+            onReviewCycle = {},
+        )
+    }
+}
+
+@Preview(widthDp = 390, heightDp = 400, backgroundColor = 0xFF14120C, showBackground = true)
+@Composable
+private fun HomeScreenCycleCompletePreview() {
+    GriffGymTheme {
+        HomeScreen(
+            state = PreviewHomeState.copy(
+                hero = HeroCardState(
+                    weekNumber = 0,
+                    dayNumber = 0,
+                    title = "Every week of this cycle is behind you. " +
+                        "Decide where the next one starts.",
+                    isDeload = false,
+                    mode = HeroMode.CYCLE_COMPLETE,
+                    exercises = emptyList(),
+                    cycleLabel = "CYCLE 3",
+                ),
+            ),
+            onEvent = {},
+            onOpenCycles = {},
+            onReviewCycle = {},
+        )
     }
 }
 
@@ -236,6 +352,7 @@ internal val PreviewHomeState = HomeUiState(
         title = "Squat Focus / Bench Volume",
         isDeload = false,
         mode = HeroMode.READY,
+        cycleLabel = "CYCLE 3",
         exercises = listOf(
             HeroExercise("Przysiad", "TOP", isTopSet = true, scheme = "1x3x192.5kg"),
             HeroExercise("Przysiad", "BACK-OFF", isTopSet = false, scheme = "3x3x180kg"),

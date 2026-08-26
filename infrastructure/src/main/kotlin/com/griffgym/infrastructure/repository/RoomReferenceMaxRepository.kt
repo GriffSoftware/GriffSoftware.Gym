@@ -5,8 +5,8 @@ import com.griffgym.domain.model.ReferenceMax
 import com.griffgym.domain.model.Weight
 import com.griffgym.domain.repository.ReferenceMaxRepository
 import com.griffgym.infrastructure.database.dao.ReferenceMaxDao
-import com.griffgym.infrastructure.database.entity.ReferenceMaxEntity
 import com.griffgym.infrastructure.mapper.toDomain
+import com.griffgym.infrastructure.mapper.toEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -29,12 +29,8 @@ class RoomReferenceMaxRepository @Inject constructor(
         weight: Weight,
         updatedOn: LocalDate,
     ) {
-        referenceMaxDao.upsert(
-            ReferenceMaxEntity(
-                category = category,
-                weightKg = weight.kilograms,
-                updatedOn = updatedOn.toEpochDay(),
-            ),
-        )
+        referenceMaxDao.upsert(ReferenceMax(category, weight, updatedOn).toEntity())
     }
+
+    override suspend fun hasAnyReferenceMax(): Boolean = referenceMaxDao.count() > 0
 }

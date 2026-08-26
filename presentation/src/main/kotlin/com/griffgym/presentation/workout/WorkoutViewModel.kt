@@ -75,19 +75,43 @@ class WorkoutViewModel @Inject constructor(
     val navigation = navigationChannel.receiveAsFlow()
 
     private val sessionFlow: Flow<SessionSource> = if (pinnedSessionId != null) {
-        getWorkoutSession(pinnedSessionId).map { SessionSource(session = it, plannedTitle = null) }
+        getWorkoutSession(pinnedSessionId).map { session ->
+            SessionSource(session = session, empty = if (session == null) MissingSession else null)
+        }
     } else {
         getCurrentWorkout().map { current ->
             when (current) {
-                is CurrentWorkout.Active -> SessionSource(session = current.session, plannedTitle = null)
+                is CurrentWorkout.Active -> SessionSource(session = current.session)
+
                 is CurrentWorkout.Planned -> SessionSource(
-                    session = null,
-                    plannedTitle = Format.weekAndDay(
-                        current.template.weekNumber,
-                        current.template.dayNumber,
-                    ) + " · " + current.template.title,
+                    empty = WorkoutEmptyState(
+                        title = "NOTHING STARTED YET",
+                        subtitle = Format.weekAndDay(
+                            current.template.weekNumber,
+                            current.template.dayNumber,
+                        ) + " · " + current.template.title,
+                        canStart = true,
+                    ),
                 )
-                CurrentWorkout.ProgramCompleted -> SessionSource(session = null, plannedTitle = null)
+
+                // The log is not where the next cycle is decided, so this states the fact and
+                // points at Home rather than growing a second entry point into the review.
+                is CurrentWorkout.CycleCompleted -> SessionSource(
+                    empty = WorkoutEmptyState(
+                        title = "${current.cycle.label} COMPLETE",
+                        subtitle = "Every week of this cycle has been logged. " +
+                            "Review it from Home to set up the next one.",
+                        canStart = false,
+                    ),
+                )
+
+                CurrentWorkout.NoProgram -> SessionSource(
+                    empty = WorkoutEmptyState(
+                        title = "NO PROGRAM",
+                        subtitle = "There is no training block on this device yet.",
+                        canStart = false,
+                    ),
+                )
             }
         }
     }
@@ -101,12 +125,7 @@ class WorkoutViewModel @Inject constructor(
         if (session == null) {
             WorkoutUiState(
                 isLoading = false,
-                emptyState = WorkoutEmptyState(
-                    title = if (source.plannedTitle != null) "NOTHING STARTED YET" else "PROGRAM COMPLETE",
-                    subtitle = source.plannedTitle
-                        ?: "Every unit of this program has been logged.",
-                    canStart = source.plannedTitle != null,
-                ),
+                emptyState = source.empty ?: MissingSession,
                 message = local.message,
             )
         } else {
@@ -379,9 +398,14 @@ class WorkoutViewModel @Inject constructor(
         else -> "Enter a valid rep count"
     }
 
+    /**
+     * Either a session to render or the reason there is none. Carrying the empty state
+     * itself rather than a title to infer it from keeps "why is this screen empty?" answered
+     * where the answer is actually known.
+     */
     private data class SessionSource(
-        val session: WorkoutSession?,
-        val plannedTitle: String?,
+        val session: WorkoutSession? = null,
+        val empty: WorkoutEmptyState? = null,
     )
 
     private data class LocalState(
@@ -397,5 +421,12 @@ class WorkoutViewModel @Inject constructor(
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
+
+        /** A session opened by id that is no longer there — deleted, or a stale deep link. */
+        val MissingSession = WorkoutEmptyState(
+            title = "SESSION NOT FOUND",
+            subtitle = "This workout is no longer on this device.",
+            canStart = false,
+        )
     }
 }

@@ -12,6 +12,13 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Reads the active plan and moves the pointer through it.
+ *
+ * Creating a plan is deliberately not here: a program only ever comes into existence as part
+ * of a cycle, so [com.griffgym.domain.repository.TrainingCycleRepository.startCycle] owns
+ * that write and this repository owns everything about the plan once it exists.
+ */
 @Singleton
 class RoomTrainingProgramRepository @Inject constructor(
     private val programDao: TrainingProgramDao,
@@ -22,6 +29,8 @@ class RoomTrainingProgramRepository @Inject constructor(
 
     override suspend fun getActiveProgram(): TrainingProgram? =
         programDao.getActiveProgram()?.toDomain()
+
+    override suspend fun hasProgram(): Boolean = programDao.programCount() > 0
 
     override fun observeCurrentWorkoutTemplate(): Flow<WorkoutTemplate?> =
         programDao.observeCurrentTemplate().map { it?.toDomain() }

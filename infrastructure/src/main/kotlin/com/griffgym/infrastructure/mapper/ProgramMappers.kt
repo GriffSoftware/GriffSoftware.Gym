@@ -1,11 +1,14 @@
 package com.griffgym.infrastructure.mapper
 
+import com.griffgym.domain.model.CycleWeekProgress
 import com.griffgym.domain.model.Exercise
 import com.griffgym.domain.model.ExerciseTemplate
 import com.griffgym.domain.model.PlannedSet
 import com.griffgym.domain.model.ReferenceMax
+import com.griffgym.domain.model.ReferenceMaxSnapshot
 import com.griffgym.domain.model.Rpe
 import com.griffgym.domain.model.RpeTarget
+import com.griffgym.domain.model.TrainingCycle
 import com.griffgym.domain.model.TrainingProgram
 import com.griffgym.domain.model.TrainingWeek
 import com.griffgym.domain.model.Weight
@@ -13,6 +16,8 @@ import com.griffgym.domain.model.WorkoutTemplate
 import com.griffgym.infrastructure.database.entity.ExerciseEntity
 import com.griffgym.infrastructure.database.entity.PlannedSetEntity
 import com.griffgym.infrastructure.database.entity.ReferenceMaxEntity
+import com.griffgym.infrastructure.database.entity.TrainingCycleEntity
+import com.griffgym.infrastructure.database.relation.CycleWeekProgressRow
 import com.griffgym.infrastructure.database.relation.ExerciseTemplateWithDetails
 import com.griffgym.infrastructure.database.relation.TrainingProgramWithWeeks
 import com.griffgym.infrastructure.database.relation.TrainingWeekWithWorkouts
@@ -93,10 +98,41 @@ internal fun TrainingProgramWithWeeks.toDomain(): TrainingProgram = TrainingProg
     weeks = weeks.sortedBy { it.week.weekNumber }.map { it.toDomain() },
 )
 
+internal fun TrainingCycleEntity.toDomain(): TrainingCycle = TrainingCycle(
+    id = id,
+    cycleNumber = cycleNumber,
+    status = status,
+    startedAt = startedAt,
+    completedAt = completedAt,
+    referenceMaxes = ReferenceMaxSnapshot(
+        squat = Weight.of(squatKg),
+        benchPress = Weight.of(benchPressKg),
+        deadlift = Weight.of(deadliftKg),
+    ),
+    createdAt = createdAt,
+)
+
+internal fun CycleWeekProgressRow.toDomain(): CycleWeekProgress = CycleWeekProgress(
+    weekNumber = weekNumber,
+    label = label,
+    isDeload = isDeload,
+    plannedWorkouts = plannedWorkouts,
+    completedWorkouts = completedWorkouts,
+)
+
+internal fun ReferenceMaxSnapshot.toReferenceMaxes(updatedOn: LocalDate): List<ReferenceMax> =
+    byCategory.map { (category, weight) -> ReferenceMax(category, weight, updatedOn) }
+
 internal fun ReferenceMaxEntity.toDomain(): ReferenceMax = ReferenceMax(
     category = category,
     weight = Weight.of(weightKg),
     updatedOn = LocalDate.ofEpochDay(updatedOn),
+)
+
+internal fun ReferenceMax.toEntity(): ReferenceMaxEntity = ReferenceMaxEntity(
+    category = category,
+    weightKg = weight.kilograms,
+    updatedOn = updatedOn.toEpochDay(),
 )
 
 internal fun toRpeTarget(min: Double?, max: Double?): RpeTarget? {

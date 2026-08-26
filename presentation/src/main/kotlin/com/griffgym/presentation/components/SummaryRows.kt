@@ -19,7 +19,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.griffgym.domain.model.ExerciseCategory
+import com.griffgym.presentation.theme.GriffGymColorScheme
 import com.griffgym.presentation.theme.GriffGymTheme
+
+/**
+ * The left-edge marker colour a lift is identified by wherever it appears — Home, the cycles
+ * screen, the review. One definition, so squat is the same colour everywhere.
+ */
+fun GriffGymColorScheme.accentFor(category: ExerciseCategory): Color = when (category) {
+    ExerciseCategory.SQUAT -> squat
+    ExerciseCategory.DEADLIFT -> deadlift
+    ExerciseCategory.BENCH_PRESS -> bench
+    ExerciseCategory.ACCESSORY -> outlineStrong
+}
 
 /**
  * "Przysiad [SILA] ......... 3x3x150kg" — the one-line exercise preview on the Home hero

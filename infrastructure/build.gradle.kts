@@ -31,6 +31,13 @@ android {
             isIncludeAndroidResources = true
         }
     }
+
+    // MigrationTestHelper loads the exported schemas through the asset loader, so the
+    // directory KSP writes them to has to be visible to the unit tests. Test-only: the
+    // schemas are a development artefact and never ship inside the app.
+    sourceSets.getByName("test") {
+        assets.srcDir(layout.projectDirectory.dir("schemas"))
+    }
 }
 
 dependencies {
@@ -38,6 +45,7 @@ dependencies {
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.datastore.preferences)
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)

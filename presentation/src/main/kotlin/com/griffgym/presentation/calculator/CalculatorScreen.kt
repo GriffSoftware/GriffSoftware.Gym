@@ -24,13 +24,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.griffgym.presentation.components.FieldLabel
 import com.griffgym.presentation.components.GriffGymCard
 import com.griffgym.presentation.components.GriffGymPrimaryButton
 import com.griffgym.presentation.components.GriffGymSecondaryButton
 import com.griffgym.presentation.components.HairLine
-import com.griffgym.presentation.components.NumericInput
-import com.griffgym.presentation.components.NumericStepper
+import com.griffgym.presentation.components.WeightAndRepsFields
 import com.griffgym.presentation.theme.GriffGymTheme
 
 @Composable
@@ -76,24 +74,12 @@ fun CalculatorScreen(
                 }
 
                 Spacer(Modifier.height(18.dp))
-                LabelledField(label = "Weight (kg)") {
-                    NumericInput(
-                        value = state.weightInput,
-                        onValueChange = { onEvent(CalculatorUiEvent.WeightChanged(it)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = "0",
-                        textStyle = GriffGymTheme.typography.dataLarge,
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-                LabelledField(label = "Reps") {
-                    NumericStepper(
-                        value = state.reps,
-                        onValueChange = { onEvent(CalculatorUiEvent.RepsChanged(it)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                WeightAndRepsFields(
+                    weight = state.weightInput,
+                    onWeightChange = { onEvent(CalculatorUiEvent.WeightChanged(it)) },
+                    reps = state.reps,
+                    onRepsChange = { onEvent(CalculatorUiEvent.RepsChanged(it)) },
+                )
 
                 if (state.error != null) {
                     Spacer(Modifier.height(10.dp))
@@ -203,22 +189,6 @@ fun CalculatorScreen(
             onSelect = { onEvent(CalculatorUiEvent.UseReferenceMax(it)) },
             onDismiss = { onEvent(CalculatorUiEvent.DismissMaxPicker) },
         )
-    }
-}
-
-@Composable
-private fun LabelledField(label: String, content: @Composable () -> Unit) {
-    val colors = GriffGymTheme.colors
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.surfaceVariant)
-            .border(1.dp, colors.outlineStrong)
-            .padding(12.dp),
-    ) {
-        FieldLabel(label)
-        Spacer(Modifier.height(8.dp))
-        content()
     }
 }
 

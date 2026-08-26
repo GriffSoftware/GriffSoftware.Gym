@@ -1,6 +1,7 @@
 package com.griffgym.infrastructure.database.converter
 
 import androidx.room.TypeConverter
+import com.griffgym.domain.model.CycleStatus
 import com.griffgym.domain.model.ExerciseCategory
 import com.griffgym.domain.model.ExerciseType
 import com.griffgym.domain.model.WorkoutStatus
@@ -30,6 +31,12 @@ class GriffGymConverters {
 
     @TypeConverter
     fun stringToWorkoutStatus(value: String): WorkoutStatus = WorkoutStatus.valueOf(value)
+
+    @TypeConverter
+    fun cycleStatusToString(value: CycleStatus): String = value.name
+
+    @TypeConverter
+    fun stringToCycleStatus(value: String): CycleStatus = CycleStatus.valueOf(value)
 
     @TypeConverter
     fun localDateToEpochDay(value: LocalDate?): Long? = value?.toEpochDay()

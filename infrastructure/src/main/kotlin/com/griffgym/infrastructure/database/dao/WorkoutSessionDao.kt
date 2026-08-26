@@ -39,6 +39,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_session WHERE status = 'COMPLETED' ORDER BY date ASC, startedAt ASC")
     fun observeCompleted(): Flow<List<WorkoutSessionWithExercises>>
 
+    @Query("SELECT COUNT(*) FROM workout_session")
+    suspend fun sessionCount(): Int
+
     @Insert
     suspend fun insertSession(session: WorkoutSessionEntity): Long
 
