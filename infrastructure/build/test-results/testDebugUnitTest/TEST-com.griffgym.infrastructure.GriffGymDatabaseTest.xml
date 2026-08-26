@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.griffgym.infrastructure.GriffGymDatabaseTest" tests="15" skipped="0" failures="0" errors="0" timestamp="2026-08-26T10:01:45.632Z" hostname="IN-LAP-143.local" time="5.115">
+  <properties/>
+  <testcase name="program progress moves through the sequence" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="4.571"/>
+  <testcase name="seeding twice does not duplicate anything" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.054"/>
+  <testcase name="seeds the reference maxes from the sheet" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.058"/>
+  <testcase name="deleting a session cascades to its logs and sets" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.044"/>
+  <testcase name="an in-progress session is what the active session flow returns" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.064"/>
+  <testcase name="an added exercise starts with one empty set" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.044"/>
+  <testcase name="a logged set survives being read back through the mapper" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.04"/>
+  <testcase name="seeds the six week program with eighteen units" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.038"/>
+  <testcase name="starting a session snapshots the plan onto every set" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.033"/>
+  <testcase name="removing a set deletes only that row" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.033"/>
+  <testcase name="updating a reference max keeps it observable" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.031"/>
+  <testcase name="seeds week one day one exactly as prescribed" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.025"/>
+  <testcase name="the deload week drops accessory work" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.028"/>
+  <testcase name="seeds accessory work without a prescribed load" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.024"/>
+  <testcase name="history keeps the planned values after the program is edited away" classname="com.griffgym.infrastructure.GriffGymDatabaseTest" time="0.027"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

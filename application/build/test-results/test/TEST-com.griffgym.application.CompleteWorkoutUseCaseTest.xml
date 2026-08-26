@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.griffgym.application.CompleteWorkoutUseCaseTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-08-26T10:01:41.809Z" hostname="IN-LAP-143.local" time="0.045">
+  <properties/>
+  <testcase name="freezes the session volume on completion" classname="com.griffgym.application.CompleteWorkoutUseCaseTest" time="0.039"/>
+  <testcase name="completing the last unit leaves the program with nothing current" classname="com.griffgym.application.CompleteWorkoutUseCaseTest" time="0.001"/>
+  <testcase name="an already finished session cannot be completed twice" classname="com.griffgym.application.CompleteWorkoutUseCaseTest" time="0.002"/>
+  <testcase name="advances the program to the next unit" classname="com.griffgym.application.CompleteWorkoutUseCaseTest" time="0.001"/>
+  <testcase name="finishing week one day three moves the plan to week two day one" classname="com.griffgym.application.CompleteWorkoutUseCaseTest" time="0.001"/>
+  <testcase name="replaying an older session does not skip the plan forward" classname="com.griffgym.application.CompleteWorkoutUseCaseTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

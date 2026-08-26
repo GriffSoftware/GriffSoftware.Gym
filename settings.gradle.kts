@@ -23,5 +23,9 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Griff Gym"
+
 include(":app")
- 
+include(":domain")
+include(":application")
+include(":infrastructure")
+include(":presentation")

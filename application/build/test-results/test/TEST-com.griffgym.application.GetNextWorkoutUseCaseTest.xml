@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.griffgym.application.GetNextWorkoutUseCaseTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-08-26T10:01:41.854Z" hostname="IN-LAP-143.local" time="0.003">
+  <properties/>
+  <testcase name="the last unit of the program has no successor" classname="com.griffgym.application.GetNextWorkoutUseCaseTest" time="0.001"/>
+  <testcase name="day one is followed by day two of the same week" classname="com.griffgym.application.GetNextWorkoutUseCaseTest" time="0.001"/>
+  <testcase name="week one day three is followed by week two day one" classname="com.griffgym.application.GetNextWorkoutUseCaseTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

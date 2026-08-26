@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.griffgym.application.CalculateWorkoutVolumeUseCaseTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-08-26T10:01:41.799Z" hostname="IN-LAP-143.local" time="0.009">
+  <properties/>
+  <testcase name="ignores sets that were never ticked off" classname="com.griffgym.application.CalculateWorkoutVolumeUseCaseTest" time="0.008"/>
+  <testcase name="accessory work with no load contributes nothing" classname="com.griffgym.application.CalculateWorkoutVolumeUseCaseTest" time="0.0"/>
+  <testcase name="sums weight times reps over every completed set" classname="com.griffgym.application.CalculateWorkoutVolumeUseCaseTest" time="0.0"/>
+  <testcase name="handles decimal loads without drift" classname="com.griffgym.application.CalculateWorkoutVolumeUseCaseTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.griffgym.application.SetInputValidationTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-08-26T10:01:41.865Z" hostname="IN-LAP-143.local" time="0.007">
+  <properties/>
+  <testcase name="a completed set needs both a load and reps" classname="com.griffgym.application.SetInputValidationTest" time="0.003"/>
+  <testcase name="a set still being edited may be blank" classname="com.griffgym.application.SetInputValidationTest" time="0.0"/>
+  <testcase name="zero and negative reps are rejected" classname="com.griffgym.application.SetInputValidationTest" time="0.001"/>
+  <testcase name="editing persists partial input without completing the set" classname="com.griffgym.application.SetInputValidationTest" time="0.001"/>
+  <testcase name="saving a valid set writes it through and marks it done" classname="com.griffgym.application.SetInputValidationTest" time="0.001"/>
+  <testcase name="an invalid set is never written to the database" classname="com.griffgym.application.SetInputValidationTest" time="0.001"/>
+  <testcase name="RPE stays optional even for a completed set" classname="com.griffgym.application.SetInputValidationTest" time="0.0"/>
+  <testcase name="accepts a decimal load typed with either separator" classname="com.griffgym.application.SetInputValidationTest" time="0.0"/>
+  <testcase name="accepts half step RPE values" classname="com.griffgym.application.SetInputValidationTest" time="0.0"/>
+  <testcase name="rejects an RPE outside the scale" classname="com.griffgym.application.SetInputValidationTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
