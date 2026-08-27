@@ -7,6 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.griffgym.presentation.account.AccountRoute
 import com.griffgym.presentation.calculator.CalculatorRoute
 import com.griffgym.presentation.cycles.CycleDetailRoute
 import com.griffgym.presentation.cycles.CycleReviewRoute
@@ -19,6 +20,7 @@ import com.griffgym.presentation.workout.WorkoutRoute
 @Composable
 fun GriffGymNavHost(
     navController: NavHostController,
+    onSignedOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -31,6 +33,18 @@ fun GriffGymNavHost(
                 onOpenWorkout = { navController.navigateTopLevel(Routes.LOG) },
                 onOpenCycles = { navController.navigate(Routes.CYCLES) },
                 onReviewCycle = { navController.navigate(Routes.CYCLE_REVIEW) },
+                onOpenAccount = { navController.navigate(Routes.ACCOUNT) },
+            )
+        }
+
+        composable(Routes.ACCOUNT) {
+            AccountRoute(
+                onCreateAccount = { onSignedOut() },
+                onSignIn = { onSignedOut() },
+                // Signing out returns the app to the entry screen, which lives above this
+                // graph entirely — the whole main NavHost is torn down, so there is no back
+                // stack left pointing at one lifter's training for the next person to find.
+                onSignedOut = onSignedOut,
             )
         }
 

@@ -57,7 +57,7 @@ class ProgramCreationTest {
             .allowMainThreadQueries()
             .build()
         programRepository = RoomTrainingProgramRepository(database.trainingProgramDao())
-        referenceMaxRepository = RoomReferenceMaxRepository(database.referenceMaxDao())
+        referenceMaxRepository = RoomReferenceMaxRepository(database, database.referenceMaxDao())
     }
 
     @After

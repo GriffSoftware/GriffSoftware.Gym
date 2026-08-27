@@ -4,10 +4,12 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.griffgym.infrastructure.database.converter.GriffGymConverters
+import com.griffgym.infrastructure.database.dao.CloudSyncDao
 import com.griffgym.infrastructure.database.dao.ExerciseDao
 import com.griffgym.infrastructure.database.dao.ReferenceMaxDao
 import com.griffgym.infrastructure.database.dao.TrainingCycleDao
 import com.griffgym.infrastructure.database.dao.TrainingProgramDao
+import com.griffgym.infrastructure.database.dao.SyncMetadataDao
 import com.griffgym.infrastructure.database.dao.WorkoutSessionDao
 import com.griffgym.infrastructure.database.entity.ExerciseEntity
 import com.griffgym.infrastructure.database.entity.ExerciseLogEntity
@@ -16,6 +18,7 @@ import com.griffgym.infrastructure.database.entity.PlannedSetEntity
 import com.griffgym.infrastructure.database.entity.ProgramProgressEntity
 import com.griffgym.infrastructure.database.entity.ReferenceMaxEntity
 import com.griffgym.infrastructure.database.entity.SetLogEntity
+import com.griffgym.infrastructure.database.entity.SyncMetadataEntity
 import com.griffgym.infrastructure.database.entity.TrainingCycleEntity
 import com.griffgym.infrastructure.database.entity.TrainingProgramEntity
 import com.griffgym.infrastructure.database.entity.TrainingWeekEntity
@@ -36,6 +39,7 @@ import com.griffgym.infrastructure.database.entity.WorkoutTemplateEntity
         ExerciseLogEntity::class,
         SetLogEntity::class,
         ReferenceMaxEntity::class,
+        SyncMetadataEntity::class,
     ],
     version = GriffGymDatabase.VERSION,
     exportSchema = true,
@@ -48,9 +52,11 @@ abstract class GriffGymDatabase : RoomDatabase() {
     abstract fun trainingCycleDao(): TrainingCycleDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun referenceMaxDao(): ReferenceMaxDao
+    abstract fun syncMetadataDao(): SyncMetadataDao
+    abstract fun cloudSyncDao(): CloudSyncDao
 
     companion object {
-        const val VERSION = 2
+        const val VERSION = 3
         const val NAME = "griff_gym.db"
     }
 }

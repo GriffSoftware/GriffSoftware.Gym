@@ -1,0 +1,258 @@
+# Griff Gym API
+
+The backend for **Griff Gym**, a native Android strength-training log. It stores a lifter's
+account, their planning numbers, their training cycles with the full plan each was built from,
+and every set they have ever logged — so that a new phone can be signed into and put straight
+back to the set they were on.
+
+The Android app is offline-first and stays that way. This API is a durable copy, not a
+dependency: nothing here assumes the phone is online, and nothing here assumes the server saw a
+record first.
+
+---
+
+## Overview
+
+| | |
+|---|---|
+| Platform | ASP.NET Core on .NET 10, Linux |
+| Database | PostgreSQL 16, via EF Core 10 and Npgsql |
+| Authentication | Email and password, JWT access tokens, rotating refresh tokens |
+| API surface | `/api/v1`, JSON, OpenAPI in development |
+| Deployment target | Docker on a Linux VPS behind a TLS-terminating reverse proxy |
+
+---
+
+## Architecture
+
+Clean Architecture as four projects, with dependencies pointing inward:
+
+```
+GriffGym.Api  ────────►  GriffGym.Application  ────────►  GriffGym.Domain
+                                   ▲                              ▲
+                                   └──── GriffGym.Infrastructure ─┘
+```
+
+- **`GriffGym.Domain`** — the training model and its rules. Has *no package references at all*,
+  so it cannot take a dependency on ASP.NET Core, EF Core, Npgsql, HTTP or JWT even by accident.
+- **`GriffGym.Application`** — explicit use cases, one class per thing the system can do, plus
+  the contracts (`IWorkoutSessionRepository`, `IPasswordHasher`, `IClock`) that infrastructure
+  implements.
+- **`GriffGym.Infrastructure`** — EF Core, PostgreSQL, password hashing, token issuing. Depends
+  on Application and Domain; nothing depends on it except the composition root.
+- **`GriffGym.Api`** — controllers, HTTP contracts, validation, error handling. `Program.cs` is
+  the only file that knows all four exist.
+
+`docs/ARCHITECTURE.md` covers the design decisions: identifiers, timestamps, concurrency,
+deletions, and what was built now to make offline sync possible later.
+
+---
+
+## Tech stack
+
+- .NET 10 (LTS), C# with nullable reference types treated as errors
+- ASP.NET Core controllers, `ProblemDetails` (RFC 9457) for every error
+- Entity Framework Core 10 with `Npgsql`, one `IEntityTypeConfiguration<T>` per table
+- `Microsoft.AspNetCore.Identity.PasswordHasher<T>` for password hashing
+- FluentValidation
+- Built-in ASP.NET Core rate limiting
+- xUnit v3 on Microsoft.Testing.Platform; Testcontainers for PostgreSQL where Docker is available
+
+---
+
+## Requirements
+
+- .NET SDK 10.0.100 or later (`global.json` pins the major version)
+- PostgreSQL 16, or Docker
+
+---
+
+## Running locally
+
+### With Docker
+
+```bash
+docker compose up --build
+```
+
+The API listens on `http://localhost:8080` and PostgreSQL on `localhost:5432`. Compose sets
+`GriffGym__ApplyMigrationsOnStartup=true`, so the schema is created on first boot.
+
+Swagger UI: <http://localhost:8080/swagger>
+
+### Without Docker
+
+Start a PostgreSQL 16 and create the database:
+
+```bash
+createdb griffgym
+```
+
+Set a signing key. There is none in the repository, and the API refuses to start without one:
+
+```bash
+dotnet user-secrets set "Jwt:SigningKey" "$(openssl rand -base64 48)" --project src/GriffGym.Api
+```
+
+Point the API at the database:
+
+```bash
+export ConnectionStrings__GriffGym="Host=localhost;Port=5432;Database=griffgym;Username=griffgym;Password=griffgym"
+```
+
+```bash
+dotnet tool restore && dotnet dotnet-ef database update --project src/GriffGym.Infrastructure --startup-project src/GriffGym.Api
+```
+
+```bash
+dotnet run --project src/GriffGym.Api
+```
+
+---
+
+## Configuration
+
+**No signing key exists anywhere in this repository**, including in
+`appsettings.Development.json`. Startup validation refuses to boot without one rather than falling
+back to a default, so a misconfigured deployment fails immediately instead of issuing tokens
+signed with something predictable. Locally, supply one through user secrets; in production,
+through the environment.
+
+(`appsettings.Development.json` does carry the docker-compose database password. That is not a
+secret in any meaningful sense — the database is reachable only from the developer's machine and
+holds nothing but throwaway data.)
+
+| Setting | Environment variable | Notes |
+|---|---|---|
+| Connection string | `ConnectionStrings__GriffGym` | Required |
+| JWT signing key | `Jwt__SigningKey` | Required, at least 32 bytes |
+| JWT issuer | `Jwt__Issuer` | Default `griffgym-api` |
+| JWT audience | `Jwt__Audience` | Default `griffgym-app` |
+| Access token lifetime | `Jwt__AccessTokenMinutes` | Default 15 |
+| Refresh token lifetime | `Jwt__RefreshTokenDays` | Default 30 |
+| Migrate on startup | `GriffGym__ApplyMigrationsOnStartup` | Default `false`; leave it off in production |
+| Auth rate limit | `RateLimiting__AuthenticationPermitsPerMinute` | Default 10 |
+| General rate limit | `RateLimiting__GeneralPermitsPerMinute` | Default 300 |
+
+Generate a signing key with:
+
+```bash
+openssl rand -base64 48
+```
+
+Environments:
+
+- **Development** — Swagger UI served, verbose EF command logging.
+- **Production** — no Swagger, no framework detail in error responses. The global handler
+  answers with a fixed sentence and logs the exception where the operator can see it.
+
+---
+
+## Database migrations
+
+Migrations are an explicit deployment step. They do **not** run on startup in production: several
+replicas booting at once would race to alter the same schema, and a bad migration would take the
+service down with no way to stop it.
+
+Create one:
+
+```bash
+dotnet dotnet-ef migrations add <Name> --project src/GriffGym.Infrastructure --startup-project src/GriffGym.Api --output-dir Persistence/Migrations
+```
+
+Apply:
+
+```bash
+dotnet dotnet-ef database update --project src/GriffGym.Infrastructure --startup-project src/GriffGym.Api
+```
+
+For a container deployment, produce an idempotent script and run it against the database before
+rolling the new image out:
+
+```bash
+dotnet dotnet-ef migrations script --idempotent --project src/GriffGym.Infrastructure --startup-project src/GriffGym.Api --output migrate.sql
+```
+
+`EnsureCreated()` is not used anywhere. Workout history is the point of this system, and it does
+not get dropped for convenience.
+
+---
+
+## Running tests
+
+```bash
+dotnet test
+```
+
+Four suites:
+
+| Suite | What it covers | Needs a database |
+|---|---|---|
+| `GriffGym.Domain.Tests` | Value objects, cycle and session lifecycles, RPE and weight rules | No |
+| `GriffGym.Application.Tests` | Use cases over hand-written in-memory repositories | No |
+| `GriffGym.Infrastructure.Tests` | EF mappings, constraints, cascades, concurrency, sync metadata | Yes |
+| `GriffGym.Api.IntegrationTests` | The real host end to end: auth, ownership, workouts, full restore | Yes |
+
+The database-backed suites find one in this order: `GRIFFGYM_TEST_POSTGRES` if set, then
+Testcontainers if a Docker daemon is reachable, then a PostgreSQL already running locally (TCP or
+Unix socket). If none answers, those tests **skip with a reason** rather than failing — a red
+suite that only means "no Postgres on this laptop" teaches people to ignore red suites.
+
+To pin them to a specific server:
+
+```bash
+GRIFFGYM_TEST_POSTGRES="Host=localhost;Port=5432;Database=postgres;Username=griffgym;Password=griffgym" dotnet test
+```
+
+---
+
+## Authentication
+
+`POST /api/v1/auth/register` and `/login` return a short-lived JWT access token and a long-lived
+refresh token. Send the access token as `Authorization: Bearer <token>`.
+
+Refresh tokens **rotate**: using one mints a replacement and retires the original, so each is good
+for exactly one use. Presenting an already-rotated token is treated as theft rather than as a
+retry — every session for that account is revoked and the lifter signs in again everywhere.
+
+Only a SHA-256 hash of each refresh token is stored. Passwords are hashed with ASP.NET Core
+Identity's PBKDF2 implementation, and are re-hashed automatically on the next successful login if
+the stored hash predates a work-factor change.
+
+`docs/API.md` walks through the flows.
+
+---
+
+## API documentation
+
+- Swagger UI at `/swagger` in development, with an **Authorize** box for the bearer token.
+- OpenAPI document at `/openapi/v1.json`.
+- `docs/API.md` for the parts a schema cannot express: the token flow, ownership, idempotency,
+  optimistic concurrency, and how state restore is meant to be used.
+
+Health checks:
+
+| Endpoint | Checks |
+|---|---|
+| `/health/live` | The process is up. Deliberately does not touch the database. |
+| `/health/ready` | PostgreSQL is reachable. |
+| `/health` | Everything. |
+
+---
+
+## Deployment notes
+
+The intended shape:
+
+```
+Internet ──► HTTPS ──► reverse proxy ──► Griff Gym API (:8080) ──► PostgreSQL
+```
+
+- The container listens on plain HTTP and expects TLS to be terminated in front of it.
+- It runs as an unprivileged user (`$APP_UID`), not root.
+- Migrations run as a deployment step, before the new image starts serving.
+- No CORS is configured. The only client is a native Android app, which is not a browser and is
+  not subject to the same-origin policy. A future web client is the moment to add it, with its
+  own origin named explicitly — not `AllowAnyOrigin`.
+
+Reverse proxy, TLS certificates and the VPS itself are a later phase and are not configured here.

@@ -260,7 +260,7 @@ class Migration1To2Test {
             )
             assertEquals(
                 Weight.of(170.0),
-                RoomReferenceMaxRepository(database.referenceMaxDao())
+                RoomReferenceMaxRepository(database, database.referenceMaxDao())
                     .getReferenceMax(ExerciseCategory.BENCH_PRESS)!!
                     .weight,
             )

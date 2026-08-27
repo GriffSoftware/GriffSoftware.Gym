@@ -8,6 +8,9 @@ import com.griffgym.domain.model.WorkoutSession
 import com.griffgym.domain.model.WorkoutStatus
 import com.griffgym.domain.model.WorkoutTemplate
 import com.griffgym.domain.repository.WorkoutSessionRepository
+import com.griffgym.infrastructure.database.entity.SyncEntityType
+import com.griffgym.infrastructure.sync.NoOpSyncRecorder
+import com.griffgym.infrastructure.sync.SyncRecorder
 import com.griffgym.infrastructure.database.GriffGymDatabase
 import com.griffgym.infrastructure.database.dao.WorkoutSessionDao
 import com.griffgym.infrastructure.database.entity.ExerciseLogEntity
@@ -25,6 +28,7 @@ import javax.inject.Singleton
 class RoomWorkoutSessionRepository @Inject constructor(
     private val database: GriffGymDatabase,
     private val sessionDao: WorkoutSessionDao,
+    private val syncRecorder: SyncRecorder = NoOpSyncRecorder,
 ) : WorkoutSessionRepository {
 
     override fun observeActiveSession(): Flow<WorkoutSession?> =
@@ -56,64 +60,82 @@ class RoomWorkoutSessionRepository @Inject constructor(
         template: WorkoutTemplate,
         date: LocalDate,
         startedAt: Instant,
-    ): Long = database.withTransaction {
-        val sessionId = sessionDao.insertSession(
-            WorkoutSessionEntity(
-                templateId = template.id,
-                weekNumber = template.weekNumber,
-                dayNumber = template.dayNumber,
-                title = template.title,
-                isDeload = template.isDeload,
-                status = WorkoutStatus.IN_PROGRESS,
-                date = date.toEpochDay(),
-                startedAt = startedAt,
-                finishedAt = null,
-                totalVolumeKg = null,
-                notes = null,
-            ),
-        )
-
-        template.exercises.sortedBy { it.position }.forEachIndexed { exerciseIndex, exercise ->
-            val logId = sessionDao.insertExerciseLog(
-                ExerciseLogEntity(
-                    sessionId = sessionId,
-                    exerciseId = exercise.exercise.id,
-                    type = exercise.type,
-                    position = exerciseIndex + 1,
+    ): Long {
+        val sessionId = database.withTransaction {
+            val sessionId = sessionDao.insertSession(
+                WorkoutSessionEntity(
+                    templateId = template.id,
+                    weekNumber = template.weekNumber,
+                    dayNumber = template.dayNumber,
+                    title = template.title,
+                    isDeload = template.isDeload,
+                    status = WorkoutStatus.IN_PROGRESS,
+                    date = date.toEpochDay(),
+                    startedAt = startedAt,
+                    finishedAt = null,
+                    totalVolumeKg = null,
+                    notes = null,
                 ),
             )
-            val sets = exercise.plannedSets.sortedBy { it.position }.mapIndexed { setIndex, planned ->
-                SetLogEntity(
-                    exerciseLogId = logId,
-                    position = setIndex + 1,
-                    plannedWeightKg = planned.weight?.kilograms,
-                    plannedReps = planned.reps,
-                    plannedRpeMin = planned.targetRpe?.min?.value,
-                    plannedRpeMax = planned.targetRpe?.max?.value,
-                    // Pre-filling the plan as the starting point is what makes logging fast:
-                    // the lifter only touches the fields where reality differed.
-                    actualWeightKg = planned.weight?.kilograms,
-                    actualReps = planned.reps,
-                    actualRpe = null,
-                    completed = false,
-                    notes = null,
+
+            template.exercises.sortedBy { it.position }.forEachIndexed { exerciseIndex, exercise ->
+                val logId = sessionDao.insertExerciseLog(
+                    ExerciseLogEntity(
+                        sessionId = sessionId,
+                        exerciseId = exercise.exercise.id,
+                        type = exercise.type,
+                        position = exerciseIndex + 1,
+                    ),
                 )
+                val sets = exercise.plannedSets.sortedBy { it.position }.mapIndexed { setIndex, planned ->
+                    SetLogEntity(
+                        exerciseLogId = logId,
+                        position = setIndex + 1,
+                        plannedWeightKg = planned.weight?.kilograms,
+                        plannedReps = planned.reps,
+                        plannedRpeMin = planned.targetRpe?.min?.value,
+                        plannedRpeMax = planned.targetRpe?.max?.value,
+                        // Pre-filling the plan as the starting point is what makes logging fast:
+                        // the lifter only touches the fields where reality differed.
+                        actualWeightKg = planned.weight?.kilograms,
+                        actualReps = planned.reps,
+                        actualRpe = null,
+                        completed = false,
+                        notes = null,
+                    )
+                }
+                if (sets.isNotEmpty()) sessionDao.insertSetLogs(sets)
             }
-            if (sets.isNotEmpty()) sessionDao.insertSetLogs(sets)
+
+            // Flagged inside the same transaction that wrote the session. Outside it, a
+            // process death in the gap would leave a workout Room knows about and the sync
+            // engine never hears of — invisible to every later pass.
+            markPending(sessionId)
+
+            sessionId
         }
 
-        sessionId
+        return sessionId
     }
 
     override suspend fun updateSet(setLogId: Long, result: SetResult) {
-        sessionDao.updateSetResult(
-            id = setLogId,
-            weightKg = result.weight?.kilograms,
-            reps = result.reps,
-            rpe = result.rpe?.value,
-            completed = result.completed,
-            notes = result.notes,
-        )
+        // Both writes are local and both commit together. No upload is attempted here: a set
+        // logged between two working sets must not wait on a network, and the lifter must not
+        // notice whether they have signal.
+        database.withTransaction {
+            sessionDao.updateSetResult(
+                id = setLogId,
+                weightKg = result.weight?.kilograms,
+                reps = result.reps,
+                rpe = result.rpe?.value,
+                completed = result.completed,
+                notes = result.notes,
+            )
+
+            sessionDao.sessionSyncIdOfSet(setLogId)?.let {
+                syncRecorder.markPending(SyncEntityType.WORKOUT_SESSION, it)
+            }
+        }
     }
 
     override suspend fun completeSession(
@@ -121,21 +143,48 @@ class RoomWorkoutSessionRepository @Inject constructor(
         finishedAt: Instant,
         totalVolume: TrainingVolume,
     ) {
-        sessionDao.finishSession(
-            id = sessionId,
-            status = WorkoutStatus.COMPLETED,
-            finishedAt = finishedAt,
-            totalVolumeKg = totalVolume.kilograms,
-        )
+        database.withTransaction {
+            sessionDao.finishSession(
+                id = sessionId,
+                status = WorkoutStatus.COMPLETED,
+                finishedAt = finishedAt,
+                totalVolumeKg = totalVolume.kilograms,
+            )
+            markPending(sessionId)
+        }
+
+        // A finished workout is the change most worth getting off the phone quickly, so this
+        // one asks for a sync rather than waiting for the periodic pass. Asking happens after
+        // the commit; the flag that makes the workout *findable* happens inside it.
+        syncRecorder.requestSync()
     }
 
     override suspend fun cancelSession(sessionId: Long, finishedAt: Instant) {
-        sessionDao.finishSession(
-            id = sessionId,
-            status = WorkoutStatus.CANCELLED,
-            finishedAt = finishedAt,
-            totalVolumeKg = null,
-        )
+        database.withTransaction {
+            sessionDao.finishSession(
+                id = sessionId,
+                status = WorkoutStatus.CANCELLED,
+                finishedAt = finishedAt,
+                totalVolumeKg = null,
+            )
+            markPending(sessionId)
+        }
+
+        syncRecorder.requestSync()
+    }
+
+    /**
+     * Records that the session now differs from the server.
+     *
+     * Always called from inside the transaction that changed it. That is the point: a record
+     * whose data committed but whose flag did not would be worse than one that failed
+     * outright — if it had previously synced, the app would go on reporting it as backed up
+     * while Room held something newer.
+     */
+    private suspend fun markPending(sessionId: Long) {
+        val syncId = sessionDao.syncIdOf(sessionId) ?: return
+
+        syncRecorder.markPending(SyncEntityType.WORKOUT_SESSION, syncId)
     }
 
     override suspend fun updateSessionNotes(sessionId: Long, notes: String?) {

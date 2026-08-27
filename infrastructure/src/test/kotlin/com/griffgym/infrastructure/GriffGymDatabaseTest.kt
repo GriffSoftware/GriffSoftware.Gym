@@ -54,7 +54,7 @@ class GriffGymDatabaseTest {
 
         programRepository = RoomTrainingProgramRepository(database.trainingProgramDao())
         sessionRepository = RoomWorkoutSessionRepository(database, database.workoutSessionDao())
-        referenceMaxRepository = RoomReferenceMaxRepository(database.referenceMaxDao())
+        referenceMaxRepository = RoomReferenceMaxRepository(database, database.referenceMaxDao())
 
         DatabaseSeeder(database).seedIfNeeded()
         // What first-run setup does on a fresh install: cycle 1, and the block that belongs

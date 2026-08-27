@@ -1,0 +1,50 @@
+# Local development only.
+#
+# The credentials here are deliberately boring and deliberately not secrets: this database
+# holds nothing but throwaway test data and is not reachable from outside the machine. A
+# production deployment supplies ConnectionStrings__GriffGym and Jwt__SigningKey from the
+# environment, and the API refuses to start without them.
+
+name: griffgym
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: griffgym
+      POSTGRES_USER: griffgym
+      POSTGRES_PASSWORD: griffgym
+    ports:
+      - "5432:5432"
+    volumes:
+      - griffgym-postgres:/var/lib/postgresql/data
+    healthcheck:
+      # The API waits for this rather than for the container merely existing: Postgres accepts
+      # TCP connections a moment before it is ready to answer queries.
+      test: ["CMD-SHELL", "pg_isready -U griffgym -d griffgym"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__GriffGym: "Host=postgres;Port=5432;Database=griffgym;Username=griffgym;Password=griffgym"
+      Jwt__Issuer: griffgym-api
+      Jwt__Audience: griffgym-app
+      Jwt__SigningKey: "local-development-signing-key-not-for-production-use"
+      # Convenient locally; never enabled in production, where several replicas would race to
+      # alter the schema at once.
+      GriffGym__ApplyMigrationsOnStartup: "true"
+    ports:
+      - "8080:8080"
+
+volumes:
+  griffgym-postgres:

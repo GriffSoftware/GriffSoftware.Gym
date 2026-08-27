@@ -516,3 +516,32 @@ class FakeOnboardingRepository(private var completed: Boolean = false) : Onboard
         completed = true
     }
 }
+
+
+/**
+ * The stored answer to "where does this lifter's data live?".
+ *
+ * In memory here, DataStore in the app — what matters to a test is that the choice persists
+ * across reads, because everything about the startup and migration flows turns on it.
+ */
+class FakeUserModeRepository(
+    var mode: com.griffgym.domain.model.UserMode = com.griffgym.domain.model.UserMode.Undecided,
+) : com.griffgym.domain.repository.UserModeRepository {
+
+    override fun observeUserMode(): Flow<com.griffgym.domain.model.UserMode> =
+        MutableStateFlow(mode)
+
+    override suspend fun getUserMode(): com.griffgym.domain.model.UserMode = mode
+
+    override suspend fun chooseLocalOnly() {
+        mode = com.griffgym.domain.model.UserMode.LocalOnly
+    }
+
+    override suspend fun markAuthenticated(session: com.griffgym.domain.model.AuthSession) {
+        mode = com.griffgym.domain.model.UserMode.Authenticated(session.userId, session.email)
+    }
+
+    override suspend fun clearAccount() {
+        mode = com.griffgym.domain.model.UserMode.Undecided
+    }
+}

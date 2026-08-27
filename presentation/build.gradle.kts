@@ -24,6 +24,14 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // The Compose tests run on Robolectric rather than an emulator, so they stay part of
+    // `./gradlew test` and cannot silently stop being run for want of a device.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
 }
 
 dependencies {
@@ -50,4 +58,14 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Same as :infrastructure — the Compose tests run on Robolectric under `test`, so this is
+    // only here to stop the empty instrumentation APK crashing on launch.
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }

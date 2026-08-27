@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun GriffGymApp(
+    onSignedOut: () -> Unit,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
 ) {
@@ -98,6 +99,7 @@ fun GriffGymApp(
         ) { padding ->
             GriffGymNavHost(
                 navController = navController,
+                onSignedOut = onSignedOut,
                 modifier = Modifier.padding(padding),
             )
         }

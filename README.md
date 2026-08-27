@@ -1,7 +1,9 @@
 # Griff Gym
 
 An offline-first powerlifting log for Android, written in Kotlin with Jetpack Compose.
-No backend, no accounts, no network — everything lives in a local Room database.
+Every training feature works with no account and no network — the phone's Room database is
+always the source of truth. An account is optional and adds a cloud backup on top of that;
+it is a copy of the local data, never a replacement for it.
 
 ## Modules
 
@@ -26,18 +28,32 @@ Dependencies point inward:
 Compose or Room even by accident. `:presentation` never sees `:infrastructure`; the two are
 wired together only in `:app` through Hilt.
 
+## Two modes
+
+Griff Gym stores this choice once, in `UserMode`, and never re-asks:
+
+- **Local-only.** Nothing leaves the phone. This is the default, and it is fully
+  functional — an account is a backup, not a licence for the app.
+- **Authenticated.** Signed in to a Griff Gym account. Room is still the only thing the UI
+  reads from; the account gives that data a durable copy on the server.
+
 ## First run
 
-A fresh install has no reference maxes yet, so it opens onboarding instead of Home: a
-welcome screen, then one step per lift (Squat, Bench Press, Deadlift) where the lifter
-either enters a known 1RM or gets one from the same Epley calculator as the CALC screen,
-then an editable summary. "BUILD MY PROGRAM" turns those three numbers into Cycle 1: a
-personal six-week block sized off percentages of the lifter's own maxes — nothing is
-generated for someone who has not entered a number.
+The first screen a lifter sees is the data-protection choice: keep training local, or
+create an account. An installation that already holds training data — someone upgrading
+from before accounts existed — is shown this exact same screen once, because that lifter
+has the most to lose and has never been asked. Choosing local changes nothing about their
+data.
 
-Anyone upgrading from before onboarding already has reference maxes, a program or history
-on disk and goes straight to Home as before; onboarding only ever triggers on a genuinely
-empty install.
+Once that is decided, a fresh install with no reference maxes yet opens onboarding instead
+of Home: a welcome screen, then one step per lift (Squat, Bench Press, Deadlift) where the
+lifter either enters a known 1RM or gets one from the same Epley calculator as the CALC
+screen, then an editable summary. "BUILD MY PROGRAM" turns those three numbers into
+Cycle 1: a personal six-week block sized off percentages of the lifter's own maxes —
+nothing is generated for someone who has not entered a number.
+
+Anyone with reference maxes, a program or history already on disk goes straight to Home;
+onboarding only ever triggers on a genuinely empty install.
 
 ## The rule that shapes the data model
 
@@ -86,6 +102,69 @@ Epley throughout: `1RM = weight × (1 + reps / 30)`, with a single returned unto
 than inflated. Statistics take the best estimate a session produced for each of the big
 three. A reference max is a planning number the lifter typed in and is deliberately never
 treated as a personal record.
+
+## Cloud backup and restore
+
+Signing in does not simply turn sync on — what happens depends on what already exists on
+each side, and getting that wrong destroys training history. `ResolvePostSignInActionUseCase`
+looks at both the phone and the account and picks one of four outcomes:
+
+| Phone | Account | Result |
+|---|---|---|
+| empty | empty | start onboarding, nothing to move |
+| has data | empty | upload the phone's history (the migration case) |
+| empty | has data | restore the account's history to this phone |
+| has data | has data | refuse to guess — ask the lifter to resolve it |
+
+Once an account is backing up, logging a set writes to Room immediately and marks the
+change `PENDING_UPLOAD`; a background sync (WorkManager, `NetworkType.CONNECTED`,
+exponential backoff) pushes it when a connection is available. Nothing about a workout
+ever waits on the network.
+
+Two rules protect the data on both sides of that:
+
+- A backup that fails is never recorded as one that succeeded. The app stays local-only and
+  says so — it does not claim a copy exists that does not.
+- If the server has moved on before a change lands, the record is marked `CONFLICT` and the
+  local copy is kept untouched. Nothing is silently overwritten, and a conflicted record is
+  not retried until it is resolved.
+
+Restoring an account's history to a phone is one Room transaction: it lands whole, or the
+database is left exactly as it was. Historical training cycles are restored exactly as
+stored — never regenerated from today's reference maxes, which would quietly rewrite what a
+lifter was actually asked to do on a day years ago.
+
+Signing out revokes the token and clears this device's cached training data; it does not
+touch the cloud copy and it is not the same as deleting the account.
+
+## Configuration
+
+The API base URL is a build setting, not a constant in the source:
+
+- **Debug** builds point at `http://10.0.2.2:8080/` (how the emulator reaches the host
+  machine) and a debug-only network security config allows cleartext to that address and to
+  `localhost`/`127.0.0.1` only — every other host still requires TLS.
+- **Release** builds read `GRIFFGYM_API_BASE_URL` from a Gradle property or the environment
+  and refuse to build if it is not an HTTPS URL.
+
+```bash
+./gradlew :app:assembleRelease -PGRIFFGYM_API_BASE_URL=https://api.example.com/
+```
+
+## Security posture
+
+- The refresh token is encrypted with an AES-256-GCM key from the Android Keystore and kept
+  in its own DataStore file — never plain text, never `SharedPreferences`. If the key ever
+  becomes unreadable (factory reset, restoring a backup onto different hardware) the stored
+  token is dropped and the lifter is asked to sign in again, rather than the app getting
+  stuck.
+- Access tokens are short-lived and refreshed automatically. Refresh tokens rotate on every
+  use and refreshing is single-flight: several requests failing at once trigger exactly one
+  refresh, because presenting a rotated token twice is treated by the server as theft, not a
+  race.
+- HTTP logging is `BASIC` and only in debug builds; the `Authorization` header is redacted
+  even there.
+- Passwords are function parameters and nothing else — never stored, never cached.
 
 ## Build
 

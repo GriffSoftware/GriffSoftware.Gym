@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The domain has no package references, and that is the point: it cannot accidentally
+    take a dependency on ASP.NET Core, EF Core, Npgsql, HTTP or JWT.
+  -->
+
+</Project>

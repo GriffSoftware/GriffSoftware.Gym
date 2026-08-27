@@ -17,6 +17,9 @@ interface ReferenceMaxDao {
     @Query("SELECT * FROM reference_max WHERE category = :category")
     suspend fun getByCategory(category: ExerciseCategory): ReferenceMaxEntity?
 
+    @Query("SELECT * FROM reference_max")
+    suspend fun observeAllOnce(): List<ReferenceMaxEntity>
+
     @Query("SELECT COUNT(*) FROM reference_max")
     suspend fun count(): Int
 

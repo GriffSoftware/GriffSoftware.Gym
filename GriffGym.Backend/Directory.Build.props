@@ -1,0 +1,38 @@
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Nullability mistakes are bugs waiting for production data, not style notes. -->
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(MSBuildProjectName.EndsWith(`Tests`))' == 'true'">
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+
+    <!--
+      xUnit v3 runs on Microsoft.Testing.Platform rather than VSTest, and the .NET 10 SDK
+      refuses the old path outright. This is what makes `dotnet test` drive the new runner.
+    -->
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseVSTest>false</UseVSTest>
+
+    <!--
+      xUnit1051 wants TestContext.Current.CancellationToken threaded through every call. These
+      suites drive in-memory fakes and a local database and finish in under two seconds; the
+      token would be noise on every line and cancel nothing worth cancelling.
+    -->
+    <NoWarn>$(NoWarn);xUnit1051</NoWarn>
+  </PropertyGroup>
+
+</Project>

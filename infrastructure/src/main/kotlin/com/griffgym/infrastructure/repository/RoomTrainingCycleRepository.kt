@@ -8,6 +8,9 @@ import com.griffgym.domain.model.TrainingCycle
 import com.griffgym.domain.model.TrainingCycleSummary
 import com.griffgym.domain.model.TrainingProgram
 import com.griffgym.domain.repository.TrainingCycleRepository
+import com.griffgym.infrastructure.database.entity.SyncEntityType
+import com.griffgym.infrastructure.sync.NoOpSyncRecorder
+import com.griffgym.infrastructure.sync.SyncRecorder
 import com.griffgym.infrastructure.database.GriffGymDatabase
 import com.griffgym.infrastructure.database.dao.ReferenceMaxDao
 import com.griffgym.infrastructure.database.dao.TrainingCycleDao
@@ -32,6 +35,7 @@ class RoomTrainingCycleRepository @Inject constructor(
     private val programDao: TrainingProgramDao,
     private val referenceMaxDao: ReferenceMaxDao,
     private val programWriter: GeneratedProgramWriter,
+    private val syncRecorder: SyncRecorder = NoOpSyncRecorder,
 ) : TrainingCycleRepository {
 
     override fun observeCurrentCycle(): Flow<TrainingCycle?> =
@@ -89,35 +93,64 @@ class RoomTrainingCycleRepository @Inject constructor(
         referenceMaxes: ReferenceMaxSnapshot,
         date: LocalDate,
         startedAt: Instant,
-    ): TrainingCycle = database.withTransaction {
-        val previous = cycleDao.getCurrent()
-        if (previous != null && previous.status == CycleStatus.ACTIVE) {
-            // Normally already closed by the last completed workout. Closing it here as well
-            // covers the upgraded installation whose program had run out before cycles
-            // existed, and keeps "exactly one open cycle" true by construction.
-            cycleDao.markCompleted(previous.id, startedAt)
+    ): TrainingCycle {
+        val cycle = database.withTransaction {
+            val previous = cycleDao.getCurrent()
+            if (previous != null && previous.status == CycleStatus.ACTIVE) {
+                // Normally already closed by the last completed workout. Closing it here as well
+                // covers the upgraded installation whose program had run out before cycles
+                // existed, and keeps "exactly one open cycle" true by construction.
+                cycleDao.markCompleted(previous.id, startedAt)
+            }
+            programDao.deactivateAllPrograms()
+
+            val cycleId = cycleDao.insert(
+                TrainingCycleEntity(
+                    cycleNumber = (previous?.cycleNumber ?: 0) + 1,
+                    status = CycleStatus.ACTIVE,
+                    startedAt = startedAt,
+                    completedAt = null,
+                    squatKg = referenceMaxes.squat.kilograms,
+                    benchPressKg = referenceMaxes.benchPress.kilograms,
+                    deadliftKg = referenceMaxes.deadlift.kilograms,
+                    createdAt = startedAt,
+                ),
+            )
+
+            programWriter.write(program = program, cycleId = cycleId, createdAt = startedAt)
+
+            // REPLACE would mint a fresh sync id for each max and orphan the server's copy, so
+            // the identity of an existing row is carried across rather than regenerated.
+            val existingSyncIds = referenceMaxDao.observeAllOnce().associate { it.category to it.syncId }
+            referenceMaxDao.upsertAll(
+                referenceMaxes.toReferenceMaxes(date).map { max ->
+                    val entity = max.toEntity()
+                    existingSyncIds[max.category]?.let { entity.copy(syncId = it) } ?: entity
+                },
+            )
+
+            // A cycle syncs as one aggregate — the row, its program, its weeks and every
+            // planned set — because a plan with half its weeks is not something any client
+            // could render.
+            //
+            // Flagged inside the transaction that created it, so a process death cannot leave
+            // a block on the phone that no sync pass will ever look at.
+            cycleDao.syncIdOf(cycleId)?.let {
+                syncRecorder.markPending(SyncEntityType.TRAINING_CYCLE, it)
+            }
+            referenceMaxDao.observeAllOnce().forEach {
+                syncRecorder.markPending(SyncEntityType.REFERENCE_MAX, it.syncId)
+            }
+
+            checkNotNull(cycleDao.getById(cycleId)) { "Cycle $cycleId vanished inside its own transaction" }
+                .toDomain()
         }
-        programDao.deactivateAllPrograms()
 
-        val cycleId = cycleDao.insert(
-            TrainingCycleEntity(
-                cycleNumber = (previous?.cycleNumber ?: 0) + 1,
-                status = CycleStatus.ACTIVE,
-                startedAt = startedAt,
-                completedAt = null,
-                squatKg = referenceMaxes.squat.kilograms,
-                benchPressKg = referenceMaxes.benchPress.kilograms,
-                deadliftKg = referenceMaxes.deadlift.kilograms,
-                createdAt = startedAt,
-            ),
-        )
+        // Starting a block is worth backing up promptly, so this asks rather than waiting for
+        // the periodic pass. Asking is a side effect and belongs after the commit.
+        syncRecorder.requestSync()
 
-        programWriter.write(program = program, cycleId = cycleId, createdAt = startedAt)
-
-        referenceMaxDao.upsertAll(referenceMaxes.toReferenceMaxes(date).map { it.toEntity() })
-
-        checkNotNull(cycleDao.getById(cycleId)) { "Cycle $cycleId vanished inside its own transaction" }
-            .toDomain()
+        return cycle
     }
 
     override suspend fun completeCurrentCycle(completedAt: Instant): TrainingCycle? =

@@ -15,6 +15,24 @@ import java.time.Instant
 @Dao
 interface WorkoutSessionDao {
 
+    @Query("SELECT syncId FROM workout_session WHERE id = :id")
+    suspend fun syncIdOf(id: Long): String?
+
+    /**
+     * The session a logged set belongs to.
+     *
+     * A set is not a record the server tracks on its own — it syncs as part of its session —
+     * so writing one has to be attributed upwards, and walking the two joins here is cheaper
+     * than loading the whole session tree to find out.
+     */
+    @Query(
+        "SELECT s.syncId FROM workout_session s " +
+            "JOIN exercise_log e ON e.sessionId = s.id " +
+            "JOIN set_log sl ON sl.exerciseLogId = e.id " +
+            "WHERE sl.id = :setLogId",
+    )
+    suspend fun sessionSyncIdOfSet(setLogId: Long): String?
+
     @Transaction
     @Query("SELECT * FROM workout_session WHERE status = :status ORDER BY startedAt DESC LIMIT 1")
     fun observeByStatus(status: WorkoutStatus): Flow<WorkoutSessionWithExercises?>

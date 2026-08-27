@@ -1,6 +1,7 @@
 package com.griffgym.presentation.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
@@ -17,6 +18,9 @@ object Routes {
     const val CALC = "calc"
     const val HISTORY = "history"
     const val CYCLES = "cycles"
+
+    /** Account and cloud backup. Reached from the drawer, never from a tab. */
+    const val ACCOUNT = "account"
 
     /** The end-of-cycle decision. Reached from Home, never from a tab. */
     const val CYCLE_REVIEW = "cycles/review"
@@ -61,4 +65,7 @@ val DrawerDestinations: List<DrawerDestination> = listOf(
     DrawerDestination("History", Icons.Filled.History, Routes.HISTORY),
     DrawerDestination("Statistics", Icons.Filled.BarChart, Routes.STATS),
     DrawerDestination("1RM calculator", Icons.Filled.Calculate, Routes.CALC),
+    // Last, and deliberately so: an account is a backup, not a feature of training, and the
+    // drawer should read as the training app it is.
+    DrawerDestination("Account", Icons.Filled.AccountCircle, Routes.ACCOUNT),
 )

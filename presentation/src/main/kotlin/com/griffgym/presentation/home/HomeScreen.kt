@@ -37,6 +37,7 @@ import com.griffgym.presentation.components.GriffGymCard
 import com.griffgym.presentation.components.GriffGymPrimaryButton
 import com.griffgym.presentation.components.HairLine
 import com.griffgym.presentation.components.ReferenceMaxRow
+import com.griffgym.presentation.account.CloudStatusCardRoute
 import com.griffgym.presentation.components.TrainingSummaryRow
 import com.griffgym.presentation.components.VolumeBar
 import com.griffgym.presentation.components.VolumeTrendChart
@@ -48,6 +49,7 @@ fun HomeRoute(
     onOpenWorkout: (Long) -> Unit,
     onOpenCycles: () -> Unit,
     onReviewCycle: () -> Unit,
+    onOpenAccount: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -66,6 +68,7 @@ fun HomeRoute(
         onEvent = viewModel::onEvent,
         onOpenCycles = onOpenCycles,
         onReviewCycle = onReviewCycle,
+        onOpenAccount = onOpenAccount,
         modifier = modifier,
     )
 }
@@ -76,6 +79,7 @@ fun HomeScreen(
     onEvent: (HomeUiEvent) -> Unit,
     onOpenCycles: () -> Unit,
     onReviewCycle: () -> Unit,
+    onOpenAccount: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val colors = GriffGymTheme.colors
@@ -102,6 +106,13 @@ fun HomeScreen(
                     onReviewCycle = onReviewCycle,
                 )
             }
+        }
+
+        // Below the hero, above everything else: noticeable on the day a lifter decides to
+        // protect their history, ignorable on the four hundred days they do not. It renders
+        // nothing at all once a signed-in lifter is fully backed up.
+        item(key = "cloudStatus") {
+            CloudStatusCardRoute(onOpenAccount = onOpenAccount)
         }
 
         item(key = "volume") {

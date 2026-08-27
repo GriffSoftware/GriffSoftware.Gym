@@ -31,6 +31,9 @@ private const val WEEK_PROGRESS_GROUP = "GROUP BY w.id ORDER BY p.cycleId, w.wee
 @Dao
 interface TrainingCycleDao {
 
+    @Query("SELECT syncId FROM training_cycle WHERE id = :id")
+    suspend fun syncIdOf(id: Long): String?
+
     @Query("SELECT * FROM training_cycle ORDER BY cycleNumber DESC LIMIT 1")
     fun observeCurrent(): Flow<TrainingCycleEntity?>
 

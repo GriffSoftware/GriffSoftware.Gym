@@ -14,7 +14,9 @@ import com.griffgym.domain.repository.TrainingProgramRepository
 import com.griffgym.domain.repository.WorkoutSessionRepository
 import com.griffgym.infrastructure.database.GriffGymDatabase
 import com.griffgym.infrastructure.database.dao.ExerciseDao
+import com.griffgym.infrastructure.database.dao.CloudSyncDao
 import com.griffgym.infrastructure.database.dao.ReferenceMaxDao
+import com.griffgym.infrastructure.database.dao.SyncMetadataDao
 import com.griffgym.infrastructure.database.dao.TrainingCycleDao
 import com.griffgym.infrastructure.database.dao.TrainingProgramDao
 import com.griffgym.infrastructure.database.dao.WorkoutSessionDao
@@ -67,6 +69,13 @@ object DatabaseModule {
     @Provides
     fun provideReferenceMaxDao(database: GriffGymDatabase): ReferenceMaxDao =
         database.referenceMaxDao()
+
+    @Provides
+    fun provideSyncMetadataDao(database: GriffGymDatabase): SyncMetadataDao =
+        database.syncMetadataDao()
+
+    @Provides
+    fun provideCloudSyncDao(database: GriffGymDatabase): CloudSyncDao = database.cloudSyncDao()
 
     @Provides
     @Singleton

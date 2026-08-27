@@ -1,5 +1,6 @@
 package com.griffgym.infrastructure.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -26,10 +27,15 @@ import java.time.Instant
             onDelete = ForeignKey.SET_NULL,
         ),
     ],
-    indices = [Index("templateId"), Index("status"), Index("date")],
+    indices = [Index("templateId"), Index("status"), Index("date"), Index(value = ["syncId"], unique = true)],
 )
 data class WorkoutSessionEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val templateId: Long?,
     val weekNumber: Int,
     val dayNumber: Int,
@@ -60,10 +66,15 @@ data class WorkoutSessionEntity(
             onDelete = ForeignKey.RESTRICT,
         ),
     ],
-    indices = [Index("sessionId"), Index("exerciseId")],
+    indices = [Index("sessionId"), Index("exerciseId"), Index(value = ["syncId"], unique = true)],
 )
 data class ExerciseLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val sessionId: Long,
     val exerciseId: Long,
     val type: ExerciseType,
@@ -80,10 +91,15 @@ data class ExerciseLogEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index("exerciseLogId")],
+    indices = [Index("exerciseLogId"), Index(value = ["syncId"], unique = true)],
 )
 data class SetLogEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val exerciseLogId: Long,
     val position: Int,
     val plannedWeightKg: Double?,

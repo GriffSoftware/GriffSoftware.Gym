@@ -136,4 +136,4 @@ val MIGRATION_1_2: Migration = object : Migration(1, 2) {
 }
 
 /** Every migration the app ships, in order. Room picks the path it needs from this list. */
-val GriffGymMigrations: Array<Migration> = arrayOf(MIGRATION_1_2)
+val GriffGymMigrations: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)

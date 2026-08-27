@@ -54,9 +54,12 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
     implementation(libs.hilt.android)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
     implementation(libs.kotlinx.coroutines.android)
 
     ksp(libs.hilt.compiler)
+    ksp(libs.androidx.hilt.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

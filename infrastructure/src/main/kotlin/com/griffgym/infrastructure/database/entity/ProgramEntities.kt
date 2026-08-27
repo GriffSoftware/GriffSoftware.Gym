@@ -1,5 +1,6 @@
 package com.griffgym.infrastructure.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -11,10 +12,19 @@ import java.time.Instant
 
 @Entity(
     tableName = "exercise",
-    indices = [Index(value = ["name"], unique = true), Index("category")],
+    indices = [
+        Index(value = ["name"], unique = true),
+        Index("category"),
+        Index(value = ["syncId"], unique = true),
+    ],
 )
 data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val name: String,
     val category: ExerciseCategory,
 )
@@ -28,10 +38,18 @@ data class ExerciseEntity(
  */
 @Entity(
     tableName = "training_cycle",
-    indices = [Index(value = ["cycleNumber"], unique = true)],
+    indices = [
+        Index(value = ["cycleNumber"], unique = true),
+        Index(value = ["syncId"], unique = true),
+    ],
 )
 data class TrainingCycleEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val cycleNumber: Int,
     val status: CycleStatus,
     val startedAt: Instant,
@@ -59,10 +77,15 @@ data class TrainingCycleEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index("cycleId")],
+    indices = [Index("cycleId"), Index(value = ["syncId"], unique = true)],
 )
 data class TrainingProgramEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val cycleId: Long,
     val name: String,
     val createdAt: Instant,
@@ -79,10 +102,18 @@ data class TrainingProgramEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index(value = ["programId", "weekNumber"], unique = true)],
+    indices = [
+        Index(value = ["programId", "weekNumber"], unique = true),
+        Index(value = ["syncId"], unique = true),
+    ],
 )
 data class TrainingWeekEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val programId: Long,
     val weekNumber: Int,
     val label: String,
@@ -102,10 +133,16 @@ data class TrainingWeekEntity(
     indices = [
         Index(value = ["weekId", "dayNumber"], unique = true),
         Index(value = ["sequenceNumber"]),
+        Index(value = ["syncId"], unique = true),
     ],
 )
 data class WorkoutTemplateEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val weekId: Long,
     val dayNumber: Int,
     /** Position of this unit in the whole program. The plan is a sequence, not a calendar. */
@@ -129,10 +166,15 @@ data class WorkoutTemplateEntity(
             onDelete = ForeignKey.RESTRICT,
         ),
     ],
-    indices = [Index("workoutTemplateId"), Index("exerciseId")],
+    indices = [Index("workoutTemplateId"), Index("exerciseId"), Index(value = ["syncId"], unique = true)],
 )
 data class ExerciseTemplateEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val workoutTemplateId: Long,
     val exerciseId: Long,
     val type: ExerciseType,
@@ -149,10 +191,15 @@ data class ExerciseTemplateEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index("exerciseTemplateId")],
+    indices = [Index("exerciseTemplateId"), Index(value = ["syncId"], unique = true)],
 )
 data class PlannedSetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val exerciseTemplateId: Long,
     val position: Int,
     /** Null for accessory work, where the plan prescribes reps and RPE but not a load. */
@@ -192,9 +239,17 @@ data class ProgramProgressEntity(
     val currentWorkoutTemplateId: Long?,
 )
 
-@Entity(tableName = "reference_max")
+@Entity(
+    tableName = "reference_max",
+    indices = [Index(value = ["syncId"], unique = true)],
+)
 data class ReferenceMaxEntity(
     @PrimaryKey val category: ExerciseCategory,
+    /**
+     * Stable, server-shared identity. Minted on this device the moment the row is created,
+     * so a record that has never been online already knows what the server will call it.
+     */
+    @ColumnInfo(defaultValue = "") val syncId: String = newSyncId(),
     val weightKg: Double,
     val updatedOn: Long,
 )

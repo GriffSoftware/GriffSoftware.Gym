@@ -5,6 +5,8 @@ import com.griffgym.domain.model.CycleStatus
 import com.griffgym.domain.model.ExerciseCategory
 import com.griffgym.domain.model.ExerciseType
 import com.griffgym.domain.model.WorkoutStatus
+import com.griffgym.infrastructure.database.entity.SyncEntityType
+import com.griffgym.infrastructure.database.entity.SyncState
 import java.time.Instant
 import java.time.LocalDate
 
@@ -37,6 +39,18 @@ class GriffGymConverters {
 
     @TypeConverter
     fun stringToCycleStatus(value: String): CycleStatus = CycleStatus.valueOf(value)
+
+    @TypeConverter
+    fun syncEntityTypeToString(value: SyncEntityType): String = value.name
+
+    @TypeConverter
+    fun stringToSyncEntityType(value: String): SyncEntityType = SyncEntityType.valueOf(value)
+
+    @TypeConverter
+    fun syncStateToString(value: SyncState): String = value.name
+
+    @TypeConverter
+    fun stringToSyncState(value: String): SyncState = SyncState.valueOf(value)
 
     @TypeConverter
     fun localDateToEpochDay(value: LocalDate?): Long? = value?.toEpochDay()

@@ -1,0 +1,10 @@
+{
+  "sdk": {
+    "version": "10.0.100",
+    "rollForward": "latestFeature"
+  },
+  "test": {
+    "//": "xUnit v3 runs on Microsoft.Testing.Platform, not VSTest. The .NET 10 SDK requires the choice to be explicit; without it `dotnet test` refuses to run the suite.",
+    "runner": "Microsoft.Testing.Platform"
+  }
+}
