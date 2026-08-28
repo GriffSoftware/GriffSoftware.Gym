@@ -104,6 +104,25 @@ public sealed class AuthEndpointTests(PostgresFixture fixture) : ApiTest(fixture
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    /// <summary>
+    /// Exercises the real host and its real DI container — the unit tests around
+    /// <c>GoogleLoginUseCase</c> construct it by hand and would never have caught the endpoint
+    /// itself failing to resolve it. This test previously reproduced exactly that: an
+    /// unregistered <c>GoogleLoginUseCase</c> made every call here a 500, not a 401.
+    /// </summary>
+    [Fact]
+    public async Task Google_login_rejects_a_bogus_token_without_crashing()
+    {
+        var client = CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/google",
+            new GoogleLoginRequest("clearly-not-a-real-google-token", null),
+            GriffGymApiFactory.Json);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     [Fact]
     public async Task Refresh_rotates_the_token_and_the_old_one_stops_working()
     {

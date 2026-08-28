@@ -25,8 +25,13 @@ internal sealed class GoogleIdTokenValidator(IOptions<GoogleOptions> options) : 
                 idToken,
                 new GoogleJsonWebSignature.ValidationSettings { Audience = [webClientId] });
         }
-        catch (InvalidJwtException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Deliberately broad: idToken is an arbitrary, attacker-controlled string at this
+            // point, and Google's library does not confine every way of rejecting one to
+            // InvalidJwtException — a string that isn't even JWT-shaped throws something else
+            // while parsing it, before validation proper ever runs. Anything short of
+            // cancellation means the same thing here: not a usable credential, never a 500.
             throw new AuthenticationFailedException("Invalid Google credential.");
         }
 

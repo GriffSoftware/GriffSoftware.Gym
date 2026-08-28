@@ -25,6 +25,7 @@ public static class DependencyInjection
 
         services.AddScoped<RegisterUserUseCase>();
         services.AddScoped<LoginUserUseCase>();
+        services.AddScoped<GoogleLoginUseCase>();
         services.AddScoped<RefreshTokenUseCase>();
         services.AddScoped<LogoutUserUseCase>();
         services.AddScoped<LogoutAllSessionsUseCase>();

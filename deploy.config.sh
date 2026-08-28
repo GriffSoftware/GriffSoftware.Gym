@@ -24,4 +24,4 @@ API_LOCAL_PORT="8080"
 # accepts tokens for. Left empty until you create it: the Google sign-in endpoint answers
 # "not configured" for that one request rather than refusing to boot, so leaving this blank
 # does not affect anything else already running.
-GOOGLE_WEB_CLIENT_ID=""
+GOOGLE_WEB_CLIENT_ID="749449696962-q5t2lvs0ov58da8jll0skakfaj3t33n2.apps.googleusercontent.com"
