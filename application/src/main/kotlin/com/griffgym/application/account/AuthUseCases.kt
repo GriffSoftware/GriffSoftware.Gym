@@ -30,6 +30,27 @@ class LoginUseCase @Inject constructor(
 }
 
 /**
+ * Signs in with Google, creating the account if this is the first time.
+ *
+ * The single entry point for both, because a verified Google identity removes the reason
+ * the app asks anybody to choose between "create account" and "sign in": the server can
+ * simply look up the address in the token.
+ *
+ * Like [RegisterUseCase] and [LoginUseCase] this deliberately does *not* mark the app as
+ * authenticated. What happens to the training data on this phone is decided afterwards by
+ * [ResolvePostSignInActionUseCase], and nothing is recorded as backed up until it is.
+ *
+ * [idToken] arrives as a plain string. Where it came from — Credential Manager, and an
+ * Activity this layer must never see — is the presentation layer's business.
+ */
+class GoogleLoginUseCase @Inject constructor(
+    private val authRepository: AuthRepository,
+) {
+    suspend operator fun invoke(idToken: String): Result<AuthSession> =
+        authRepository.loginWithGoogle(idToken)
+}
+
+/**
  * Ends the session on this device.
  *
  * Three things, in an order chosen so that a failure never leaves the phone showing one

@@ -27,6 +27,19 @@ internal data class LoginRequestDto(
     val deviceId: String? = null,
 )
 
+/**
+ * A Google sign-in, which is also a registration the first time an address is seen.
+ *
+ * [idToken] is the signed JWT Credential Manager hands back — never an access token. The
+ * server verifies the signature, the audience and the expiry against Google's published
+ * keys, so nothing about this request is trusted because the client sent it.
+ */
+@Serializable
+internal data class GoogleLoginRequestDto(
+    val idToken: String,
+    val deviceId: String? = null,
+)
+
 @Serializable
 internal data class RefreshRequestDto(
     val refreshToken: String,

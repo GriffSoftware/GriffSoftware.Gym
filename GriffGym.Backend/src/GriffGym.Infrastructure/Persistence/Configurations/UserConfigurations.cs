@@ -24,6 +24,13 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<UserRecord>
         builder.Property(user => user.PasswordHash).IsRequired().HasMaxLength(512);
         builder.Property(user => user.SecurityStamp).IsRequired().HasMaxLength(64);
 
+        // Google's "sub" claim, once this account has signed in with Google. Filtered so any
+        // number of accounts that have never done so can all be null without colliding.
+        builder.Property(user => user.GoogleSubjectId).HasMaxLength(255);
+        builder.HasIndex(user => user.GoogleSubjectId)
+            .IsUnique()
+            .HasFilter("google_subject_id IS NOT NULL");
+
         builder.ConfigureSyncMetadata();
 
         builder.HasMany(user => user.RefreshTokens)

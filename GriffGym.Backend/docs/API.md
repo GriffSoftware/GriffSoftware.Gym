@@ -18,6 +18,7 @@ to use the API correctly.
 |---|---|---|
 | `POST` | `/api/v1/auth/register` | 201 with a token pair |
 | `POST` | `/api/v1/auth/login` | 200 with a token pair |
+| `POST` | `/api/v1/auth/google` | 200 with a token pair, from a Google ID token instead of a password |
 | `POST` | `/api/v1/auth/refresh` | 200 with a **new** token pair |
 | `POST` | `/api/v1/auth/logout` | 204, revokes one refresh token |
 | `POST` | `/api/v1/auth/logout-all` | 204, revokes every session (requires a bearer token) |
@@ -85,6 +86,12 @@ Query parameters on the list: `page`, `pageSize` (max 100), `cycleId`, `status`,
 ```
 POST /api/v1/auth/register  ──►  { accessToken, refreshToken, expiresInSeconds, ... }
 ```
+
+`/api/v1/auth/google` returns the exact same shape, from `{ "idToken": "<Google ID token>" }`
+instead of an email and password. The first time a Google identity is seen it registers an
+account; a returning one, or one matching an existing password account's Google-verified email,
+signs straight in. Nothing else about the token pair differs — refresh, rotation and logout all
+work identically regardless of how the session started.
 
 Send the access token on every other request:
 
@@ -401,7 +408,7 @@ so a gym on shared Wi-Fi is not locked out by one bad client on the same network
 
 | Bucket | Default | Applies to |
 |---|---|---|
-| Authentication | 10/minute | `register`, `login`, `refresh`, `logout` |
+| Authentication | 10/minute | `register`, `login`, `google`, `refresh`, `logout` |
 | General | 300/minute | Everything |
 
 A rejected request is `429` with `Retry-After` in seconds. There is no queue: making a failed

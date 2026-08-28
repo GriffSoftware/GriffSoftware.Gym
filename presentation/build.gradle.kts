@@ -54,6 +54,13 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.kotlinx.coroutines.core)
 
+    // Sign in with Google. Credential Manager is the only part of the flow that needs an
+    // Activity, which is why the wrapper around it lives here rather than in :infrastructure —
+    // see GoogleSignInLauncher.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.google.identity.googleid)
+
     ksp(libs.hilt.compiler)
 
     testImplementation(libs.junit)

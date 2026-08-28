@@ -71,6 +71,6 @@ rsync_to_remote \
 
 echo "==> Running remote setup / update (sudo may ask for a password here)"
 ssh -t -o ControlPath="$CTRL_PATH" "$SSH_USER@$SSH_HOST" \
-  "chmod +x '$STAGING_DIR/deploy/remote-setup.sh' && ${SUDO_PREFIX}env STAGING_DIR='$STAGING_DIR' API_DOMAIN='$API_DOMAIN' ACME_EMAIL='$ACME_EMAIL' API_LOCAL_PORT='$API_LOCAL_PORT' bash '$STAGING_DIR/deploy/remote-setup.sh'"
+  "chmod +x '$STAGING_DIR/deploy/remote-setup.sh' && ${SUDO_PREFIX}env STAGING_DIR='$STAGING_DIR' API_DOMAIN='$API_DOMAIN' ACME_EMAIL='$ACME_EMAIL' API_LOCAL_PORT='$API_LOCAL_PORT' GOOGLE_WEB_CLIENT_ID='$GOOGLE_WEB_CLIENT_ID' bash '$STAGING_DIR/deploy/remote-setup.sh'"
 
 echo "==> Done. https://$API_DOMAIN/health/live"

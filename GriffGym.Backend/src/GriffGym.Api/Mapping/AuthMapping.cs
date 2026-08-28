@@ -21,6 +21,9 @@ internal static class AuthMapping
     public static LoginUserCommand ToCommand(this LoginRequest request) =>
         new(request.Email, request.Password, request.DeviceId);
 
+    public static GoogleLoginCommand ToCommand(this GoogleLoginRequest request) =>
+        new(request.IdToken, request.DeviceId);
+
     public static RefreshTokenCommand ToCommand(this RefreshRequest request) =>
         new(request.RefreshToken, request.DeviceId);
 

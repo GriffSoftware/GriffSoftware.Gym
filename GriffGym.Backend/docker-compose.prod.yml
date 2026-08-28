@@ -48,6 +48,10 @@ services:
       Jwt__Issuer: griffgym-api
       Jwt__Audience: griffgym-app
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY must be set (see deploy/remote-setup.sh)}
+      # Not required, unlike the settings above: Google sign-in is an additional login method,
+      # so an empty value here just makes that one endpoint answer "not configured" rather than
+      # blocking every other request. See GoogleOptions.
+      Google__WebClientId: ${GOOGLE_WEB_CLIENT_ID:-}
       # Several replicas booting at once would race to alter the same schema — migrations are
       # applied explicitly by the `migrate` service below, before this one is (re)started.
       GriffGym__ApplyMigrationsOnStartup: "false"

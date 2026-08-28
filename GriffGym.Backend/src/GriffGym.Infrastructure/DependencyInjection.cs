@@ -44,9 +44,16 @@ public static class DependencyInjection
                 settings.RefreshTokenLifetime = TimeSpan.FromDays(jwt.Value.RefreshTokenDays);
             });
 
+        // No ValidateOnStart: Google sign-in is an additional login method, not a replacement
+        // for email/password, so a deployment that has not configured it yet still boots and
+        // serves everything else — see GoogleOptions and GoogleIdTokenValidator.
+        services.AddOptions<GoogleOptions>()
+            .Bind(configuration.GetSection(GoogleOptions.SectionName));
+
         services.AddSingleton<IPasswordHasher, PasswordHasherAdapter>();
         services.AddSingleton<IRefreshTokenGenerator, RefreshTokenGenerator>();
         services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+        services.AddSingleton<IGoogleIdTokenValidator, GoogleIdTokenValidator>();
 
         services.AddScoped<SyncMetadataInterceptor>();
 

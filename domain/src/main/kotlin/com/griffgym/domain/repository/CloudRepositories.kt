@@ -53,6 +53,20 @@ interface AuthRepository {
     suspend fun login(email: String, password: String): Result<AuthSession>
 
     /**
+     * Signs in with a Google ID token, registering the account on first use.
+     *
+     * One call for both, because Google has already answered the question the two forms
+     * exist to ask: the token names a verified email address, so "do you have an account
+     * yet" is the server's problem rather than something to make a lifter choose between.
+     *
+     * [idToken] is a signed JWT obtained on the device and verified by the server against
+     * Google's keys — never an access token, which proves nothing about who is holding it.
+     * The token is a parameter and nothing more: like a password it is never stored, and the
+     * only thing that outlives this call is the session it mints.
+     */
+    suspend fun loginWithGoogle(idToken: String): Result<AuthSession>
+
+    /**
      * Revokes the refresh token server-side and clears it from the device.
      *
      * Succeeds even when the server cannot be reached: a lifter who wants to sign out on a

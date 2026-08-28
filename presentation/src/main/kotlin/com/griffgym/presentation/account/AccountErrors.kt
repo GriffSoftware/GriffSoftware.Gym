@@ -28,6 +28,13 @@ internal data class AuthFailure(
 internal enum class AuthContext {
     REGISTER,
     LOGIN,
+
+    /**
+     * Signing in with Google, where a 401 says nothing about a password: the token was
+     * rejected, and telling a lifter their credentials were wrong when they typed none
+     * would be nonsense.
+     */
+    GOOGLE,
     ACCOUNT,
 }
 
@@ -54,6 +61,7 @@ internal fun Throwable.toAuthFailure(context: AuthContext): AuthFailure = when (
             // app should confirm to whoever is holding the phone.
             AuthContext.LOGIN -> AccountMessages.WRONG_CREDENTIALS
             AuthContext.REGISTER -> AccountMessages.GENERIC
+            AuthContext.GOOGLE -> AccountMessages.GOOGLE_REJECTED
             AuthContext.ACCOUNT -> AccountMessages.SESSION_ENDED
         },
     )
@@ -71,6 +79,26 @@ internal fun Throwable.toAuthFailure(context: AuthContext): AuthFailure = when (
         AuthFailure(AccountMessages.SERVICE_TROUBLE)
 
     else -> AuthFailure(AccountMessages.GENERIC)
+}
+
+/**
+ * The same job for a sign-in that never reached the server.
+ *
+ * Credential Manager fails for reasons the API layer has no vocabulary for — no Google
+ * account on the phone, Play services out of date, a build with no client id — and those are
+ * worth separating from "the network is down", because only one of them is worth retrying.
+ * Everything past the token exchange is an ordinary API failure and falls through to
+ * [toAuthFailure].
+ *
+ * [GoogleSignInException.Cancelled] is deliberately not handled here. A dismissed picker is
+ * not a failure and never reaches a banner; the caller returns quietly instead.
+ */
+internal fun Throwable.toGoogleSignInFailure(): AuthFailure = when (this) {
+    is GoogleSignInException.Unavailable -> AuthFailure(AccountMessages.GOOGLE_UNAVAILABLE)
+
+    is GoogleSignInException -> AuthFailure(AccountMessages.GOOGLE_SIGN_IN_FAILED)
+
+    else -> toAuthFailure(AuthContext.GOOGLE)
 }
 
 /**
@@ -139,6 +167,19 @@ internal object AccountMessages {
     const val CHANGED_ELSEWHERE = "Your account was changed on another device. Try again."
 
     const val GENERIC = "Something went wrong. Try again."
+
+    const val GOOGLE_UNAVAILABLE = "Google sign-in is not available on this device. " +
+        "Create an account with an email address instead."
+
+    const val GOOGLE_SIGN_IN_FAILED = "Google sign-in could not be completed. Try again, " +
+        "or use an email address instead."
+
+    /**
+     * The token was minted but the server would not take it — expired, or meant for a
+     * different app. Nothing a lifter can fix by trying harder, so it offers the other door.
+     */
+    const val GOOGLE_REJECTED = "Griff Gym could not confirm your Google account. Try again, " +
+        "or use an email address instead."
 
     /**
      * The account exists but the app could not work out what to do with the lifter's data,

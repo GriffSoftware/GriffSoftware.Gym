@@ -29,6 +29,9 @@ CADDYFILE="/etc/caddy/Caddyfile"
 : "${API_DOMAIN:?API_DOMAIN must be set}"
 : "${ACME_EMAIL:?ACME_EMAIL must be set}"
 : "${API_LOCAL_PORT:?API_LOCAL_PORT must be set}"
+# Not required: Google sign-in is an additional login method, and a deployment that has not
+# configured it yet must still update and serve everything else. See GoogleOptions.
+: "${GOOGLE_WEB_CLIENT_ID:=}"
 
 log() { printf '\n\033[1;33m==> %s\033[0m\n' "$1"; }
 
@@ -97,13 +100,14 @@ else
   log "Reusing existing secrets from $ENV_FILE"
 fi
 
-# API_DOMAIN / ACME_EMAIL / API_LOCAL_PORT can change between deploys; the generated passwords
-# never should, so they're managed separately from these lines.
-sed -i '/^API_DOMAIN=/d;/^ACME_EMAIL=/d;/^API_LOCAL_PORT=/d' "$ENV_FILE"
+# API_DOMAIN / ACME_EMAIL / API_LOCAL_PORT / GOOGLE_WEB_CLIENT_ID can change between deploys;
+# the generated passwords never should, so they're managed separately from these lines.
+sed -i '/^API_DOMAIN=/d;/^ACME_EMAIL=/d;/^API_LOCAL_PORT=/d;/^GOOGLE_WEB_CLIENT_ID=/d' "$ENV_FILE"
 {
   echo "API_DOMAIN=$API_DOMAIN"
   echo "ACME_EMAIL=$ACME_EMAIL"
   echo "API_LOCAL_PORT=$API_LOCAL_PORT"
+  echo "GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID"
 } >> "$ENV_FILE"
 
 # --- 4. Build, migrate, (re)start -------------------------------------------------------------

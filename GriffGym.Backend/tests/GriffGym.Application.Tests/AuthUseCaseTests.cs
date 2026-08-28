@@ -1,3 +1,4 @@
+using GriffGym.Application.Abstractions.Security;
 using GriffGym.Application.Auth;
 using GriffGym.Application.Common;
 using GriffGym.Domain.Users;
@@ -41,6 +42,8 @@ internal sealed class AuthHarness
 
     public FakeCurrentUser CurrentUser { get; } = new();
 
+    public FakeGoogleIdTokenValidator GoogleTokens { get; } = new();
+
     public AuthenticationSessionService Sessions { get; }
 
     public RegisterUserUseCase Register => new(
@@ -49,6 +52,10 @@ internal sealed class AuthHarness
 
     public LoginUserUseCase Login => new(
         Users, UnitOfWork, Hasher, Sessions, Clock, NullLogger<LoginUserUseCase>.Instance);
+
+    public GoogleLoginUseCase Google => new(
+        Users, UnitOfWork, GoogleTokens, Hasher, Sessions, Identifiers, Clock,
+        NullLogger<GoogleLoginUseCase>.Instance);
 
     public RefreshTokenUseCase Refresh => new(
         Users, RefreshTokens, UnitOfWork, TokenGenerator, Sessions, Clock,
@@ -187,6 +194,83 @@ public sealed class LoginUserUseCaseTests
 
         // Re-hashing is not a credential change, so tokens already issued stay valid.
         Assert.Equal(stampBefore, harness.Users.All[0].SecurityStamp);
+    }
+}
+
+public sealed class GoogleLoginUseCaseTests
+{
+    [Fact]
+    public async Task Registers_a_new_account_the_first_time_a_google_identity_is_seen()
+    {
+        var harness = new AuthHarness();
+        harness.GoogleTokens.NextIdentity = new GoogleIdentity("google-sub-1", "lifter@example.com", true);
+
+        var result = await harness.Google.ExecuteAsync(
+            new GoogleLoginCommand("google-id-token", "pixel-9"),
+            default);
+
+        var user = Assert.Single(harness.Users.All);
+        Assert.Equal("lifter@example.com", user.Email.Value);
+        Assert.Equal("google-sub-1", user.GoogleSubjectId);
+        Assert.Equal(user.Id, result.UserId);
+        Assert.NotEmpty(result.AccessToken);
+    }
+
+    [Fact]
+    public async Task Links_to_an_existing_password_account_with_the_same_verified_email()
+    {
+        // Google has already verified the address, which is what makes folding it into an
+        // existing password account safe rather than an account-takeover vector.
+        var harness = new AuthHarness();
+        var registered = await harness.RegisterAsync("lifter@example.com");
+        harness.GoogleTokens.NextIdentity = new GoogleIdentity("google-sub-1", "LIFTER@example.com", true);
+
+        var result = await harness.Google.ExecuteAsync(
+            new GoogleLoginCommand("google-id-token", null),
+            default);
+
+        Assert.Single(harness.Users.All);
+        Assert.Equal(registered.UserId, result.UserId);
+        Assert.Equal("google-sub-1", harness.Users.All[0].GoogleSubjectId);
+    }
+
+    [Fact]
+    public async Task Recognises_a_returning_google_account_by_subject_not_email()
+    {
+        var harness = new AuthHarness();
+        harness.GoogleTokens.NextIdentity = new GoogleIdentity("google-sub-1", "lifter@example.com", true);
+        var first = await harness.Google.ExecuteAsync(new GoogleLoginCommand("token-1", null), default);
+
+        var second = await harness.Google.ExecuteAsync(
+            new GoogleLoginCommand("token-2", "tablet"),
+            default);
+
+        Assert.Single(harness.Users.All);
+        Assert.Equal(first.UserId, second.UserId);
+    }
+
+    [Fact]
+    public async Task Refuses_an_unverified_email()
+    {
+        var harness = new AuthHarness();
+        harness.GoogleTokens.NextIdentity = new GoogleIdentity("google-sub-1", "lifter@example.com", false);
+
+        await Assert.ThrowsAsync<AuthenticationFailedException>(() => harness.Google.ExecuteAsync(
+            new GoogleLoginCommand("google-id-token", null),
+            default));
+
+        Assert.Empty(harness.Users.All);
+    }
+
+    [Fact]
+    public async Task Refuses_a_token_that_does_not_validate()
+    {
+        var harness = new AuthHarness();
+        // NextIdentity left unset: the fake fails the way a bad signature or wrong audience would.
+
+        await Assert.ThrowsAsync<AuthenticationFailedException>(() => harness.Google.ExecuteAsync(
+            new GoogleLoginCommand("garbage", null),
+            default));
     }
 }
 

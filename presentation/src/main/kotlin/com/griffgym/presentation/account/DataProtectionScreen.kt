@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,14 +40,21 @@ import com.griffgym.presentation.theme.GriffGymTheme
 internal fun DataProtectionRoute(
     onCreateAccount: () -> Unit,
     onSignIn: () -> Unit,
-    onContinuedLocally: (AuthFlowResult) -> Unit,
+    onStep: (AuthFlowStep) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: DataProtectionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    /*
+     * Credential Manager puts its account picker over an Activity, so it needs one. This is
+     * the app's single Activity, read here and handed over only for the duration of the call
+     * — the ViewModel outlives it and must never hold it. See GoogleSignInLauncher.
+     */
+    val context = LocalContext.current
+
     LaunchedEffect(viewModel) {
-        viewModel.completion.collect(onContinuedLocally)
+        viewModel.steps.collect(onStep)
     }
 
     DataProtectionScreen(
@@ -54,6 +62,7 @@ internal fun DataProtectionRoute(
         onEvent = viewModel::onEvent,
         onCreateAccount = onCreateAccount,
         onSignIn = onSignIn,
+        onSignInWithGoogle = { viewModel.signInWithGoogle(context) },
         modifier = modifier,
     )
 }
@@ -66,8 +75,12 @@ internal fun DataProtectionRoute(
  * is a sales pitch nobody reads; "your training history cannot be recovered" is the actual
  * situation, and it is the reason this screen exists at all.
  *
- * All three ways out are on screen at once. Local-only is a legitimate answer — the app is
+ * Every way out is on screen at once. Local-only is a legitimate answer — the app is
  * complete without an account — so it is offered plainly rather than buried.
+ *
+ * Google sits between the two account options because it is one action where they are two:
+ * there is no separate "create account with Google", so putting it on both forms would be
+ * the same button twice, asking a question Google has already answered.
  */
 @Composable
 fun DataProtectionScreen(
@@ -75,6 +88,7 @@ fun DataProtectionScreen(
     onEvent: (DataProtectionUiEvent) -> Unit,
     onCreateAccount: () -> Unit,
     onSignIn: () -> Unit,
+    onSignInWithGoogle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = GriffGymTheme.colors
@@ -137,18 +151,33 @@ fun DataProtectionScreen(
             text = "CREATE ACCOUNT",
             onClick = onCreateAccount,
             modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isBusy,
         )
         Spacer(Modifier.height(4.dp))
         GriffGymSecondaryButton(
             text = "SIGN IN",
             onClick = onSignIn,
             modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isBusy,
         )
+        Spacer(Modifier.height(4.dp))
+        GriffGymSecondaryButton(
+            text = if (state.isSigningInWithGoogle) "SIGNING IN…" else "SIGN IN WITH GOOGLE",
+            onClick = onSignInWithGoogle,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isBusy,
+        )
+
+        if (state.formError != null) {
+            Spacer(Modifier.height(16.dp))
+            AccountErrorText(state.formError)
+        }
+
         Spacer(Modifier.height(8.dp))
         AccountTertiaryAction(
             text = "CONTINUE LOCALLY",
             onClick = { onEvent(DataProtectionUiEvent.ContinueLocallyRequested) },
-            enabled = !state.isWorking,
+            enabled = !state.isBusy,
         )
     }
 
@@ -243,6 +272,21 @@ private fun DataProtectionScreenPreview() {
             onEvent = {},
             onCreateAccount = {},
             onSignIn = {},
+            onSignInWithGoogle = {},
+        )
+    }
+}
+
+@Preview(widthDp = 390, heightDp = 844, backgroundColor = 0xFF14120C, showBackground = true)
+@Composable
+private fun DataProtectionScreenGoogleErrorPreview() {
+    GriffGymTheme {
+        DataProtectionScreen(
+            state = DataProtectionUiState(formError = AccountMessages.GOOGLE_SIGN_IN_FAILED),
+            onEvent = {},
+            onCreateAccount = {},
+            onSignIn = {},
+            onSignInWithGoogle = {},
         )
     }
 }

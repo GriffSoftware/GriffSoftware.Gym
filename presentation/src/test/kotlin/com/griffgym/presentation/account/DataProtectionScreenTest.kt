@@ -36,6 +36,7 @@ class DataProtectionScreenTest {
                     onEvent = {},
                     onCreateAccount = {},
                     onSignIn = {},
+                    onSignInWithGoogle = {},
                 )
             }
         }
@@ -57,7 +58,7 @@ class DataProtectionScreenTest {
     }
 
     @Test
-    fun `all three ways forward are offered`() {
+    fun `every way forward is offered`() {
         composeRule.setContent {
             GriffGymTheme {
                 DataProtectionScreen(
@@ -65,16 +66,97 @@ class DataProtectionScreenTest {
                     onEvent = {},
                     onCreateAccount = {},
                     onSignIn = {},
+                    onSignInWithGoogle = {},
                 )
             }
         }
 
-        // The screen scrolls, and on a short display the third option starts below the fold.
-        // Scrolling to it is part of what is being checked: it has to be reachable, not merely
-        // present in the tree.
-        listOf("CREATE ACCOUNT", "SIGN IN", "CONTINUE LOCALLY").forEach { label ->
+        // The screen scrolls, and on a short display the last options start below the fold.
+        // Scrolling to them is part of what is being checked: they have to be reachable, not
+        // merely present in the tree.
+        listOf(
+            "CREATE ACCOUNT",
+            "SIGN IN",
+            "SIGN IN WITH GOOGLE",
+            "CONTINUE LOCALLY",
+        ).forEach { label ->
             composeRule.onNodeWithText(label).performScrollTo().assertIsDisplayed()
         }
+    }
+
+    /**
+     * Google sign-in reports through the ViewModel rather than the event stream, because it
+     * needs the Activity — so the screen's only job is handing the tap on.
+     */
+    @Test
+    fun `the google option reports the tap without going through the confirmation`() {
+        var googleTaps = 0
+        val events = mutableListOf<DataProtectionUiEvent>()
+
+        composeRule.setContent {
+            GriffGymTheme {
+                DataProtectionScreen(
+                    state = DataProtectionUiState(),
+                    onEvent = events::add,
+                    onCreateAccount = {},
+                    onSignIn = {},
+                    onSignInWithGoogle = { googleTaps++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("SIGN IN WITH GOOGLE").performScrollTo().performClick()
+
+        assertEquals(1, googleTaps)
+        assertTrue("signing in with Google is not a local-only decision", events.isEmpty())
+    }
+
+    /**
+     * A failed sign-in has to say so on the screen. The wording comes from [AccountMessages],
+     * which is the only place the cloud features are allowed to write a sentence.
+     */
+    @Test
+    fun `a failed google sign-in is shown, not swallowed`() {
+        composeRule.setContent {
+            GriffGymTheme {
+                DataProtectionScreen(
+                    state = DataProtectionUiState(
+                        formError = AccountMessages.GOOGLE_SIGN_IN_FAILED,
+                    ),
+                    onEvent = {},
+                    onCreateAccount = {},
+                    onSignIn = {},
+                    onSignInWithGoogle = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(AccountMessages.GOOGLE_SIGN_IN_FAILED)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    /** While the account picker is up, nothing else on the screen may be started. */
+    @Test
+    fun `an in-flight google sign-in blocks the other ways out`() {
+        val events = mutableListOf<DataProtectionUiEvent>()
+
+        composeRule.setContent {
+            GriffGymTheme {
+                DataProtectionScreen(
+                    state = DataProtectionUiState(isSigningInWithGoogle = true),
+                    onEvent = events::add,
+                    onCreateAccount = {},
+                    onSignIn = {},
+                    onSignInWithGoogle = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("CONTINUE LOCALLY").performScrollTo().performClick()
+
+        assertTrue("the disabled action still fired", events.isEmpty())
+        composeRule.onNodeWithText("SIGNING IN…").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -88,6 +170,7 @@ class DataProtectionScreenTest {
                     onEvent = events::add,
                     onCreateAccount = {},
                     onSignIn = {},
+                    onSignInWithGoogle = {},
                 )
             }
         }
@@ -107,6 +190,7 @@ class DataProtectionScreenTest {
                     onEvent = {},
                     onCreateAccount = {},
                     onSignIn = {},
+                    onSignInWithGoogle = {},
                 )
             }
         }
@@ -135,6 +219,7 @@ class DataProtectionScreenTest {
                     onEvent = events::add,
                     onCreateAccount = {},
                     onSignIn = {},
+                    onSignInWithGoogle = {},
                 )
             }
         }

@@ -15,6 +15,8 @@ internal sealed class UserRecord : ISyncable
 
     public string SecurityStamp { get; set; } = string.Empty;
 
+    public string? GoogleSubjectId { get; set; }
+
     public int Version { get; set; }
 
     public long SyncVersion { get; set; }

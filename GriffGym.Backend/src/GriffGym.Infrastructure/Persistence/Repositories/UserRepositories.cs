@@ -39,6 +39,18 @@ internal sealed class UserRepository(GriffGymDbContext context)
         return record is null ? null : Materialise(record, record.Id, UserMapper.ToDomain);
     }
 
+    public async Task<User?> FindByGoogleSubjectIdAsync(
+        string googleSubjectId,
+        CancellationToken cancellationToken)
+    {
+        var record = await context.Set<UserRecord>()
+            .FirstOrDefaultAsync(
+                user => user.GoogleSubjectId == googleSubjectId && user.DeletedAtUtc == null,
+                cancellationToken);
+
+        return record is null ? null : Materialise(record, record.Id, UserMapper.ToDomain);
+    }
+
     public Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken) =>
         context.Set<UserRecord>()
             .AnyAsync(

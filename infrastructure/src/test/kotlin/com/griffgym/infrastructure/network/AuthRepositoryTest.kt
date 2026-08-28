@@ -129,6 +129,57 @@ class AuthRepositoryTest {
     }
 
     @Test
+    fun `a google sign-in stores the pair and reports the session`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(authenticationJson()))
+
+        val session = harness.authRepository.loginWithGoogle(GOOGLE_ID_TOKEN).getOrThrow()
+
+        assertEquals(USER_ID, session.userId)
+        assertEquals(EMAIL, session.email)
+        assertEquals("refresh-1", harness.tokenStorage.readTokens()?.refreshToken)
+        assertEquals(session, harness.authRepository.observeSession().first())
+    }
+
+    /**
+     * The ID token goes up, a device id goes with it, and no bearer token does — the call
+     * mints the first session this installation has, so there is nothing to authorise it with.
+     */
+    @Test
+    fun `a google sign-in sends the id token and a device id, and no bearer token`() = runTest {
+        harness.tokenStorage.saveTokens(testTokens(accessToken = "stale-access"))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(authenticationJson()))
+
+        harness.authRepository.loginWithGoogle(GOOGLE_ID_TOKEN).getOrThrow()
+
+        val recorded = server.takeRequest()
+        assertEquals("/api/v1/auth/google", recorded.path)
+        assertNull(recorded.getHeader("Authorization"))
+
+        val body = recorded.body.readUtf8()
+        assertTrue(body.contains("\"idToken\":\"$GOOGLE_ID_TOKEN\""))
+        assertTrue(body.contains("\"deviceId\""))
+    }
+
+    /**
+     * What a rejected or expired ID token looks like — and what the server answers today,
+     * before its Google client id is configured. It must leave the device exactly as it was.
+     */
+    @Test
+    fun `a rejected google token is Unauthorized and leaves nothing stored`() = runTest {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(401)
+                .setBody(problemJson(401, "Unauthorized", "The Google token was rejected.")),
+        )
+
+        val error = harness.authRepository.loginWithGoogle(GOOGLE_ID_TOKEN).exceptionOrNull()
+
+        assertTrue(error is GriffGymError.Unauthorized)
+        assertNull(harness.tokenStorage.readTokens())
+        assertNull(harness.authRepository.restoreSession())
+    }
+
+    @Test
     fun `wrong credentials are Unauthorized and leave nothing stored`() = runTest {
         server.enqueue(
             MockResponse()
@@ -219,5 +270,12 @@ class AuthRepositoryTest {
 
         assertFalse(harness.authRepository.observeSessionExpired().first())
         assertNotNull(harness.authRepository.restoreSession())
+    }
+
+    private companion object {
+
+        /** Shaped like a JWT rather than a random string, because that is what is sent. */
+        const val GOOGLE_ID_TOKEN =
+            "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NSIsImF1ZCI6ImdyaWZmZ3ltIn0.signature"
     }
 }

@@ -38,7 +38,10 @@ fun AuthNavHost(
             DataProtectionRoute(
                 onCreateAccount = { navController.navigate(AuthRoutes.REGISTER) },
                 onSignIn = { navController.navigate(AuthRoutes.LOGIN) },
-                onContinuedLocally = onAuthFlowComplete,
+                // Signing in with Google finishes here rather than on a form, so the entry
+                // screen reports the same steps the two forms do — including a backup or a
+                // restore, which a Google account needs exactly as much as any other.
+                onStep = { step -> navController.handle(step, onAuthFlowComplete) },
             )
         }
 

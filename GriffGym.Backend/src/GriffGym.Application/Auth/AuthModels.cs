@@ -4,6 +4,8 @@ public sealed record RegisterUserCommand(string Email, string Password, string? 
 
 public sealed record LoginUserCommand(string Email, string Password, string? DeviceId);
 
+public sealed record GoogleLoginCommand(string IdToken, string? DeviceId);
+
 public sealed record RefreshTokenCommand(string RefreshToken, string? DeviceId);
 
 public sealed record LogoutCommand(string RefreshToken);

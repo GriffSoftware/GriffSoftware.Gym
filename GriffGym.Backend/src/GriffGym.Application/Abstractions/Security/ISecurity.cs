@@ -52,3 +52,24 @@ public interface IRefreshTokenGenerator
     /// <summary>Hashes a token a client presented, so it can be looked up by hash.</summary>
     string HashPresented(string token);
 }
+
+/// <summary>
+/// What the application layer needs out of a Google ID token, once it is known to be genuine.
+///
+/// <see cref="EmailVerified"/> is Google's own attestation that it controls the address, not
+/// this application's opinion — it is what makes linking a Google sign-in to an existing
+/// password account by email safe rather than a spoofing vector.
+/// </summary>
+public sealed record GoogleIdentity(string Subject, string Email, bool EmailVerified);
+
+/// <summary>
+/// Verifies a Google ID token's signature, issuer, audience and expiry against Google's own
+/// published keys — nothing here trusts the token's claims until that has happened.
+/// </summary>
+public interface IGoogleIdTokenValidator
+{
+    /// <exception cref="GriffGym.Application.Common.AuthenticationFailedException">
+    /// The token is malformed, expired, or was not issued for this application.
+    /// </exception>
+    Task<GoogleIdentity> ValidateAsync(string idToken, CancellationToken cancellationToken);
+}

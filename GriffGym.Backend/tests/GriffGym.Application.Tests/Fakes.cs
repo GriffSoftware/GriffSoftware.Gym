@@ -86,6 +86,17 @@ internal sealed class FakeAccessTokenIssuer(IClock clock) : IAccessTokenIssuer
         TimeSpan.FromMinutes(15));
 }
 
+internal sealed class FakeGoogleIdTokenValidator : IGoogleIdTokenValidator
+{
+    /// <summary>What the next call returns; null makes it fail the way a bad token really would.</summary>
+    public GoogleIdentity? NextIdentity { get; set; }
+
+    public Task<GoogleIdentity> ValidateAsync(string idToken, CancellationToken cancellationToken) =>
+        NextIdentity is { } identity
+            ? Task.FromResult(identity)
+            : throw new AuthenticationFailedException("Invalid Google credential.");
+}
+
 internal sealed class FakeRefreshTokenGenerator : IRefreshTokenGenerator
 {
     private int _next;
@@ -112,6 +123,11 @@ internal sealed class FakeUserRepository : IUserRepository
         string normalizedEmail,
         CancellationToken cancellationToken) =>
         Task.FromResult(_users.FirstOrDefault(user => user.Email.Normalized == normalizedEmail));
+
+    public Task<User?> FindByGoogleSubjectIdAsync(
+        string googleSubjectId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(_users.FirstOrDefault(user => user.GoogleSubjectId == googleSubjectId));
 
     public Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken) =>
         Task.FromResult(_users.Any(user => user.Email.Normalized == normalizedEmail));

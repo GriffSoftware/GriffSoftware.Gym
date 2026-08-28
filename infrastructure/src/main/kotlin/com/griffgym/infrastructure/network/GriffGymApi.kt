@@ -9,6 +9,7 @@ import com.griffgym.infrastructure.network.dto.CycleResponseDto
 import com.griffgym.infrastructure.network.dto.CycleSummaryResponseDto
 import com.griffgym.infrastructure.network.dto.ExerciseResponseDto
 import com.griffgym.infrastructure.network.dto.FinishWorkoutRequestDto
+import com.griffgym.infrastructure.network.dto.GoogleLoginRequestDto
 import com.griffgym.infrastructure.network.dto.LogSetRequestDto
 import com.griffgym.infrastructure.network.dto.LoginRequestDto
 import com.griffgym.infrastructure.network.dto.LogoutRequestDto
@@ -58,6 +59,14 @@ internal interface GriffGymApi {
 
     @POST("api/v1/auth/login")
     suspend fun login(@Body request: LoginRequestDto): AuthenticationResponseDto
+
+    /**
+     * Signs in with a Google ID token, creating the account the first time that address is
+     * seen. One endpoint for both, so the app never has to ask a lifter which of the two they
+     * meant.
+     */
+    @POST("api/v1/auth/google")
+    suspend fun googleLogin(@Body request: GoogleLoginRequestDto): AuthenticationResponseDto
 
     /**
      * Exchanges a refresh token for a new pair. The token presented is retired in the same

@@ -9,6 +9,13 @@ public sealed record RegisterRequest(string Email, string Password, string? Devi
 
 public sealed record LoginRequest(string Email, string Password, string? DeviceId);
 
+/// <summary>
+/// <c>IdToken</c> is the Google ID token the Android app got from Credential Manager after the
+/// lifter picked a Google account — never a Google access token, and never anything the app
+/// itself asserts about who the user is.
+/// </summary>
+public sealed record GoogleLoginRequest(string IdToken, string? DeviceId);
+
 public sealed record RefreshRequest(string RefreshToken, string? DeviceId);
 
 public sealed record LogoutRequest(string RefreshToken);

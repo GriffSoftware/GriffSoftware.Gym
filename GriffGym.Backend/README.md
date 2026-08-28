@@ -133,6 +133,7 @@ holds nothing but throwaway data.)
 | Migrate on startup | `GriffGym__ApplyMigrationsOnStartup` | Default `false`; leave it off in production |
 | Auth rate limit | `RateLimiting__AuthenticationPermitsPerMinute` | Default 10 |
 | General rate limit | `RateLimiting__GeneralPermitsPerMinute` | Default 300 |
+| Google sign-in web client id | `Google__WebClientId` | Optional — see `docs/GOOGLE_SIGN_IN.md` at the repo root. Unset means `/api/v1/auth/google` alone answers unconfigured; nothing else is affected |
 
 Generate a signing key with:
 
@@ -218,6 +219,12 @@ retry — every session for that account is revoked and the lifter signs in agai
 Only a SHA-256 hash of each refresh token is stored. Passwords are hashed with ASP.NET Core
 Identity's PBKDF2 implementation, and are re-hashed automatically on the next successful login if
 the stored hash predates a work-factor change.
+
+`POST /api/v1/auth/google` is a second way to reach the same token pair: it verifies a Google ID
+token instead of a password, registering an account the first time a Google identity is seen or
+linking it to an existing password account with the same, Google-verified, email address. See
+`docs/GOOGLE_SIGN_IN.md` at the repo root for one-time Google Cloud setup — the endpoint answers
+"not configured" until that's done, without affecting anything else.
 
 `docs/API.md` walks through the flows.
 

@@ -18,6 +18,8 @@ public interface IUserRepository
 
     Task<User?> FindByNormalizedEmailAsync(string normalizedEmail, CancellationToken cancellationToken);
 
+    Task<User?> FindByGoogleSubjectIdAsync(string googleSubjectId, CancellationToken cancellationToken);
+
     Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken);
 
     void Add(User user);

@@ -19,6 +19,7 @@ internal static class UserMapper
             EmailAddress.FromStorage(record.Email, record.NormalizedEmail),
             record.PasswordHash,
             record.SecurityStamp,
+            record.GoogleSubjectId,
             record.CreatedAtUtc,
             record.UpdatedAtUtc);
 
@@ -44,6 +45,7 @@ internal static class UserMapper
         record.NormalizedEmail = user.Email.Normalized;
         record.PasswordHash = user.PasswordHash;
         record.SecurityStamp = user.SecurityStamp;
+        record.GoogleSubjectId = user.GoogleSubjectId;
         record.CreatedAtUtc = user.CreatedAtUtc;
         record.DeletedAtUtc = user.DeletedAtUtc;
     }

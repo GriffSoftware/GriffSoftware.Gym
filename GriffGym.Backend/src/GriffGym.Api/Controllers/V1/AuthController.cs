@@ -45,6 +45,25 @@ public sealed class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Signs in with a Google ID token, registering an account the first time this Google
+    /// identity is seen (or linking it to an existing password account with the same, Google
+    /// verified, email address).
+    /// </summary>
+    [HttpPost("google")]
+    [AllowAnonymous]
+    [ProducesResponseType<AuthenticationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<AuthenticationResponse>> Google(
+        [FromBody] GoogleLoginRequest request,
+        [FromServices] GoogleLoginUseCase useCase,
+        CancellationToken cancellationToken)
+    {
+        var result = await useCase.ExecuteAsync(request.ToCommand(), cancellationToken);
+
+        return Ok(result.ToResponse());
+    }
+
+    /// <summary>
     /// Exchanges a refresh token for a new pair. The token presented is retired in the same
     /// breath, so each one is good for exactly one use.
     /// </summary>

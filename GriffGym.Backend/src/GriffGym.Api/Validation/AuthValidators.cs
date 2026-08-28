@@ -52,6 +52,17 @@ public sealed class LoginRequestValidator : AbstractValidator<LoginRequest>
     }
 }
 
+public sealed class GoogleLoginRequestValidator : AbstractValidator<GoogleLoginRequest>
+{
+    public GoogleLoginRequestValidator()
+    {
+        // A Google ID token is a JWT carrying the account's profile claims, comfortably a few KB
+        // — nothing like a password's length policy applies here.
+        RuleFor(request => request.IdToken).NotEmpty().MaximumLength(8192);
+        RuleFor(request => request.DeviceId).MaximumLength(128);
+    }
+}
+
 public sealed class RefreshRequestValidator : AbstractValidator<RefreshRequest>
 {
     public RefreshRequestValidator()

@@ -5,6 +5,7 @@ import com.griffgym.domain.repository.AuthRepository
 import com.griffgym.infrastructure.network.ApiErrorMapper
 import com.griffgym.infrastructure.network.GriffGymApi
 import com.griffgym.infrastructure.network.dto.AuthenticationResponseDto
+import com.griffgym.infrastructure.network.dto.GoogleLoginRequestDto
 import com.griffgym.infrastructure.network.dto.LoginRequestDto
 import com.griffgym.infrastructure.network.dto.LogoutRequestDto
 import com.griffgym.infrastructure.network.dto.RegisterRequestDto
@@ -68,6 +69,25 @@ internal class RetrofitAuthRepository @Inject constructor(
                 LoginRequestDto(
                     email = email,
                     password = password,
+                    deviceId = deviceIdProvider.deviceId(),
+                ),
+            ).persist()
+        }
+
+    /**
+     * Exchanges a Google ID token for a Griff Gym session, registering the account the first
+     * time that address is seen.
+     *
+     * The token is treated exactly as a password is: sent, never stored, never retried from
+     * memory. It is also short-lived and single-purpose — the server verifies it against
+     * Google's keys and it is worthless afterwards — so the only thing that survives this
+     * call is the token pair `persist` writes.
+     */
+    override suspend fun loginWithGoogle(idToken: String): Result<AuthSession> =
+        safeApiCall(errorMapper) {
+            api.googleLogin(
+                GoogleLoginRequestDto(
+                    idToken = idToken,
                     deviceId = deviceIdProvider.deviceId(),
                 ),
             ).persist()

@@ -18,3 +18,10 @@ ACME_EMAIL="contact@griffsoftware.com"
 # port, which the shared Caddy is pointed at. Must not collide with another app's port on the
 # same box (check the existing blocks in /etc/caddy/Caddyfile before changing this).
 API_LOCAL_PORT="8080"
+
+# OAuth 2.0 *Web application* client id for Sign in with Google (see docs/GOOGLE_SIGN_IN.md).
+# Not a secret — it travels in every sign-in request and only sets which audience the server
+# accepts tokens for. Left empty until you create it: the Google sign-in endpoint answers
+# "not configured" for that one request rather than refusing to boot, so leaving this blank
+# does not affect anything else already running.
+GOOGLE_WEB_CLIENT_ID=""
