@@ -1,0 +1,77 @@
+# Production deployment, used on the OVH server.
+#
+# Deployed and updated via ../deploy-backend.sh — see that script and deploy/remote-setup.sh for
+# how this file gets its .env. Do not run this directly with a hand-written .env unless you know
+# what you're generating for POSTGRES_PASSWORD and JWT_SIGNING_KEY: both must be long random
+# values, not something memorable.
+#
+# The server runs one shared, host-level Caddy (not part of this project) that already terminates
+# TLS for other sites on :80/:443 — see docs/DEPLOYMENT.md. This stack does not run its own reverse
+# proxy: the api container publishes only to 127.0.0.1:API_LOCAL_PORT, and remote-setup.sh adds a
+# site block to that shared Caddy pointing at it. Unlike docker-compose.yml (local dev), Postgres
+# publishes no port to the host at all.
+
+name: griffgym
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: griffgym
+      POSTGRES_USER: griffgym
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (see deploy/remote-setup.sh)}
+    volumes:
+      - griffgym-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U griffgym -d griffgym"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${API_LOCAL_PORT:?API_LOCAL_PORT must be set}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__GriffGym: "Host=postgres;Port=5432;Database=griffgym;Username=griffgym;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
+      Jwt__Issuer: griffgym-api
+      Jwt__Audience: griffgym-app
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?JWT_SIGNING_KEY must be set (see deploy/remote-setup.sh)}
+      # Several replicas booting at once would race to alter the same schema — migrations are
+      # applied explicitly by the `migrate` service below, before this one is (re)started.
+      GriffGym__ApplyMigrationsOnStartup: "false"
+    networks:
+      - internal
+
+  # Not started by `up`; run explicitly as a one-off deployment step:
+  #   docker compose -f docker-compose.prod.yml run --rm migrate
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    profiles: ["migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__GriffGym: "Host=postgres;Port=5432;Database=griffgym;Username=griffgym;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}"
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  griffgym-postgres:

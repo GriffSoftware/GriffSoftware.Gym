@@ -12,6 +12,7 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 COPY global.json nuget.config Directory.Build.props Directory.Packages.props ./
+COPY .config/ .config/
 COPY src/GriffGym.Domain/GriffGym.Domain.csproj                 src/GriffGym.Domain/
 COPY src/GriffGym.Application/GriffGym.Application.csproj       src/GriffGym.Application/
 COPY src/GriffGym.Infrastructure/GriffGym.Infrastructure.csproj src/GriffGym.Infrastructure/
@@ -25,6 +26,21 @@ RUN dotnet publish src/GriffGym.Api/GriffGym.Api.csproj \
     --configuration $BUILD_CONFIGURATION \
     --no-restore \
     --output /app/publish
+
+# ---------------------------------------------------------------------------------------------
+# Migrate
+#
+# Applying a migration needs the SDK, the EF Core CLI tooling and the Infrastructure project's
+# design-time factory — none of which belong in the runtime image that actually serves traffic.
+# This stage forks off `build` instead, and is only ever built as its own compose service.
+# ---------------------------------------------------------------------------------------------
+FROM build AS migrate
+
+RUN dotnet tool restore
+
+ENTRYPOINT ["dotnet", "dotnet-ef", "database", "update", \
+    "--project", "src/GriffGym.Infrastructure", \
+    "--startup-project", "src/GriffGym.Api"]
 
 # ---------------------------------------------------------------------------------------------
 # Runtime

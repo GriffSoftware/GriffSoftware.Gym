@@ -242,17 +242,42 @@ Health checks:
 
 ## Deployment notes
 
-The intended shape:
+Production shape, running on a shared OVH VPS (other projects live on the same box):
 
 ```
-Internet ──► HTTPS ──► reverse proxy ──► Griff Gym API (:8080) ──► PostgreSQL
+Internet ──► HTTPS ──► shared Caddy (:80/:443) ──► Griff Gym API (127.0.0.1:8080) ──► PostgreSQL
+                              │
+                              └──► other sites on the same box (untouched)
 ```
 
-- The container listens on plain HTTP and expects TLS to be terminated in front of it.
-- It runs as an unprivileged user (`$APP_UID`), not root.
-- Migrations run as a deployment step, before the new image starts serving.
+- Caddy is a single host-level instance shared by every site on the box — not something this
+  project brings up itself. It terminates TLS and renews Let's Encrypt certificates for all of
+  them. GriffGym's compose stack has no reverse proxy of its own: the API container publishes
+  only to a loopback port, and `deploy/remote-setup.sh` adds a clearly-marked block for
+  `API_DOMAIN` to the shared `/etc/caddy/Caddyfile`, validating the result before reloading so a
+  bad config can't take down anyone else's site. See `docs/DEPLOYMENT.md`.
+- PostgreSQL publishes no port to the host at all; only the API container can reach it.
+- The API container runs as an unprivileged user (`$APP_UID`), not root.
+- Migrations run as an explicit deployment step (the `migrate` Compose service, a separate build
+  target that stays at the SDK layer), before the API container is (re)started — never on
+  container startup. See `docker-compose.prod.yml`.
+- `POSTGRES_PASSWORD` and `JWT_SIGNING_KEY` are generated once on first deploy and kept in
+  `/opt/griffgym/.env` on the server, outside the directory that gets overwritten by every
+  redeploy.
 - No CORS is configured. The only client is a native Android app, which is not a browser and is
   not subject to the same-origin policy. A future web client is the moment to add it, with its
   own origin named explicitly — not `AllowAnyOrigin`.
 
-Reverse proxy, TLS certificates and the VPS itself are a later phase and are not configured here.
+### Deploying / updating
+
+From the repository root (not this directory):
+
+```bash
+./deploy-backend.sh
+```
+
+Edit `deploy.config.sh` once first (server address, SSH user, `API_DOMAIN`, `ACME_EMAIL`) — see
+`docs/DEPLOYMENT.md` for what it does and what's needed on the server side (a DNS A record for
+`API_DOMAIN` pointing at the server, before the first run). Running it again ships whatever is
+currently in `GriffGym.Backend/`: it syncs the source, rebuilds the image, applies pending
+migrations, and restarts the stack — the same command for the first deploy and every one after.
