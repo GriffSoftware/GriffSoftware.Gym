@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.griffgym.presentation.components.AppInfoFooter
 import com.griffgym.presentation.components.CardHeader
 import com.griffgym.presentation.components.GriffGymBadge
 import com.griffgym.presentation.components.GriffGymCard
@@ -110,6 +111,10 @@ fun AccountScreen(
         if (state.message != null) {
             AccountErrorText(state.message)
         }
+
+        // Last in the scroll, in both modes: the policy and the build number are the two
+        // things a lifter goes looking for rather than stumbles into.
+        AppInfoFooter()
     }
 
     if (state.isConfirmingSignOut) {
