@@ -137,6 +137,27 @@ lifter was actually asked to do on a day years ago.
 Signing out revokes the token and clears this device's cached training data; it does not
 touch the cloud copy and it is not the same as deleting the account.
 
+## Profile and account deletion
+
+The top-right avatar opens **Profile** for a signed-in lifter (and the sign-in/register screen
+for anyone local-only) — cloud backup status, last backup time, sign out, and a fenced-off
+**Danger Zone** with permanent account deletion.
+
+Deleting an account is deliberately hard to do by accident: a first dialog lists exactly what
+goes — the account, every training cycle, all workout history, any workout in progress, every
+logged set, reference maxes, the cloud backup — and states that it cannot be undone; a second
+requires typing `DELETE` before the button confirming it will even enable.
+
+Nothing local is touched until the server confirms the account is gone. If the request fails —
+offline, a server error, a timeout — the account, its tokens and the phone's Room database are
+left exactly as they were, and the lifter is offered `TRY AGAIN`. There is no queued "delete
+later once back online": a deletion nobody was there to see complete is not one anybody
+consented to. On success the app cancels its background sync jobs, clears the local training
+data, and returns to the first-run flow — the data-mode choice, then onboarding — as if the
+account had never existed on this phone. There is no separate global exercise dictionary: the
+movement catalogue is per account, so it is deleted along with everything else; a fresh start
+recreates it from scratch during onboarding.
+
 ## Configuration
 
 The API base URL is a build setting, not a constant in the source:

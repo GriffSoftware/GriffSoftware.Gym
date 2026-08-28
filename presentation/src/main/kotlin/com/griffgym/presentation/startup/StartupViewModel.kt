@@ -88,6 +88,22 @@ class StartupViewModel @Inject constructor(
         _uiState.value = StartupUiState.ChoosingDataMode
     }
 
+    /**
+     * The account and everything under it are gone, here and on the server.
+     *
+     * It lands on the same state as [onSignedOut] and is deliberately a separate method
+     * anyway, because what has happened is not the same thing and the difference is what the
+     * lifter meets next. Signing out leaves a backup to sign back into; this leaves nothing,
+     * and the setup flag has been cleared along with the database — so choosing a mode here
+     * leads on into first-run setup rather than back to a Home screen with an empty plan.
+     *
+     * Deliberately not [resolve]: re-reading state that was cleared a moment ago invites a
+     * race with the writes that cleared it, and the answer is already known.
+     */
+    fun onAccountDeleted() {
+        _uiState.value = StartupUiState.ChoosingDataMode
+    }
+
     private fun resolve() {
         _uiState.value = StartupUiState.Loading
 

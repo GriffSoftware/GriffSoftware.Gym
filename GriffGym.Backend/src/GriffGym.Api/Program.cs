@@ -71,6 +71,14 @@ builder.Services
             ClockSkew = TimeSpan.FromSeconds(jwt.ClockSkewSeconds),
             NameClaimType = "sub",
         };
+
+        // Signature and expiry only prove the token was genuine when it was minted. This asks
+        // the further question the account-deletion feature depends on: does the account it
+        // names still exist, and is this token still the current one for it?
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = AccessTokenValidation.EnsureAccountIsStillActiveAsync,
+        };
     });
 
 builder.Services.AddAuthorization();

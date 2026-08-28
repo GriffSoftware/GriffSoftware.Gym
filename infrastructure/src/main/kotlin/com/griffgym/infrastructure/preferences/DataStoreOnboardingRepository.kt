@@ -29,6 +29,15 @@ class DataStoreOnboardingRepository @Inject constructor(
         dataStore.edit { it[ONBOARDING_COMPLETED] = true }
     }
 
+    /**
+     * Removed rather than written as `false`, so the preferences file ends up in the state a
+     * fresh install has. The two read the same today, but leaving a key behind is how "have
+     * we asked this lifter yet?" quietly becomes a third answer later on.
+     */
+    override suspend fun clearOnboardingCompleted() {
+        dataStore.edit { it.remove(ONBOARDING_COMPLETED) }
+    }
+
     private companion object {
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
     }

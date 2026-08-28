@@ -509,11 +509,19 @@ class FakeOnboardingRepository(private var completed: Boolean = false) : Onboard
     var markCalls: Int = 0
         private set
 
+    var clearCalls: Int = 0
+        private set
+
     override suspend fun isOnboardingCompleted(): Boolean = completed
 
     override suspend fun markOnboardingCompleted() {
         markCalls++
         completed = true
+    }
+
+    override suspend fun clearOnboardingCompleted() {
+        clearCalls++
+        completed = false
     }
 }
 

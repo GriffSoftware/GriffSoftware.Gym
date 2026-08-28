@@ -290,6 +290,8 @@ class DataProtectionViewModelTest {
 
         override suspend fun logout(): Result<Unit> = error("Not part of this flow.")
 
+        override suspend fun deleteAccount(): Result<Unit> = error("Not part of this flow.")
+
         override suspend fun restoreSession(): AuthSession? = null
 
         override fun observeSessionExpired(): Flow<Boolean> = emptyFlow()
@@ -356,5 +358,7 @@ class DataProtectionViewModelTest {
         }
 
         override suspend fun syncNow(): Result<Unit> = Result.success(Unit)
+
+        override suspend fun cancelScheduledSync() = Unit
     }
 }

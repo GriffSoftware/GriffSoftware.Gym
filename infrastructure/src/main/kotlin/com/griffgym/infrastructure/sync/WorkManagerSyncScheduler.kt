@@ -95,6 +95,12 @@ internal class WorkManagerSyncScheduler @Inject constructor(
         syncEngine.pushPendingChanges().map { }
 
     /**
+     * The contract account deletion is written against. Same work as [cancelAll]; named for
+     * the caller that has to guarantee nothing will touch Room behind its back.
+     */
+    override suspend fun cancelScheduledSync() = cancelAll()
+
+    /**
      * A safety net rather than the main mechanism: changes are pushed as they happen, and this
      * catches whatever was left behind by a process that died mid-pass or a phone that spent
      * three days in a drawer.
@@ -110,6 +116,11 @@ internal class WorkManagerSyncScheduler @Inject constructor(
         )
     }
 
+    /**
+     * Cancels both unique works. Already-running passes are cancelled too, which is safe:
+     * [SyncEngine] uploads by `syncId`, so a pass cut short has either written a record or
+     * not, and the next one repeats it rather than duplicating it.
+     */
     fun cancelAll() {
         workManager.cancelUniqueWork(GriffGymSyncWorker.UNIQUE_PERIODIC_WORK)
         workManager.cancelUniqueWork(GriffGymSyncWorker.UNIQUE_ONE_OFF_WORK)

@@ -4,6 +4,33 @@ Entries are grouped by development phase rather than by release version, since G
 not shipped a versioned release yet. Each entry explains what changed and why it mattered,
 not a line-by-line diff.
 
+## Phase 3 — Profile and account deletion
+
+A **Profile screen**, reached from the top bar's avatar for a signed-in lifter: cloud backup
+status, last backup time, sign out, and a fenced-off Danger Zone for permanently deleting the
+account. The avatar previously did nothing for a signed-in lifter — it now routes by `UserMode`,
+so an account without one still opens the existing sign-in screen.
+
+**Permanent account deletion**, gated by a two-step confirmation — an inventory of what is
+removed, then a case-sensitive `DELETE` typed into a field before the button confirming it will
+enable. The server call goes first: nothing local is touched until the account is confirmed gone,
+and any failure — offline, a server error, a timeout — leaves the account, its tokens and the
+local database exactly as they were, with no deletion queued for later. On success the app
+cancels its sync workers, clears local training data, and returns to the first-run flow rather
+than a login screen.
+
+On the backend, a new `DELETE /api/v1/users/me` reads the account from the access token's `sub`
+claim alone and removes it, and everything it owns, in one transaction: workout sessions, training
+cycles (and their programs, weeks, templates and planned sets), the exercise catalogue, reference
+maxes, and every refresh token — in that order, because the exercise catalogue cannot be removed
+while a training cycle still references it. This is a genuine hard delete, not the tombstone the
+rest of the sync model uses, because the point of the feature is that the data is actually gone.
+
+**Access tokens now stop working the moment the account they name is deleted.** A new
+`OnTokenValidated` check looks the account up on every authenticated request and also compares the
+token's `sstamp` claim against the account's current one — the same claim the API already issued
+for a future password-invalidation feature, now put to its first real use.
+
 ## Phase 2 — Cloud backup and synchronisation
 
 Griff Gym gained an optional account. Local-only use is unchanged and remains the default:

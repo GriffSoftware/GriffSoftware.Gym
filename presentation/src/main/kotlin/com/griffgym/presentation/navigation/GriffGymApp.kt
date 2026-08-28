@@ -34,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -53,10 +55,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun GriffGymApp(
     onSignedOut: () -> Unit,
+    onAccountDeleted: () -> Unit,
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
+    avatarViewModel: AvatarDestinationViewModel = hiltViewModel(),
 ) {
     val colors = GriffGymTheme.colors
+    val avatarDestination by avatarViewModel.destination.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -87,7 +92,19 @@ fun GriffGymApp(
     ) {
         Scaffold(
             containerColor = colors.background,
-            topBar = { GriffGymTopBar(onMenuClick = { scope.launch { drawerState.open() } }) },
+            topBar = {
+                GriffGymTopBar(
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    // One icon, two destinations, decided by whether there is an account
+                    // behind it. Tapping it while already there is a no-op rather than a
+                    // second copy of the screen on the stack.
+                    onAvatarClick = {
+                        if (currentRoute != avatarDestination) {
+                            navController.navigate(avatarDestination)
+                        }
+                    },
+                )
+            },
             bottomBar = {
                 GriffGymBottomNavigation(
                     items = BottomNavDestinations,
@@ -100,6 +117,7 @@ fun GriffGymApp(
             GriffGymNavHost(
                 navController = navController,
                 onSignedOut = onSignedOut,
+                onAccountDeleted = onAccountDeleted,
                 modifier = Modifier.padding(padding),
             )
         }

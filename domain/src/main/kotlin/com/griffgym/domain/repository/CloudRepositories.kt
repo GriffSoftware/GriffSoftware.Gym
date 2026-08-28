@@ -75,6 +75,21 @@ interface AuthRepository {
      */
     suspend fun logout(): Result<Unit>
 
+    /**
+     * Erases the account itself, server-side, and only then the credentials on this device.
+     *
+     * The mirror image of [logout], and deliberately so. Signing out is a local act that is
+     * allowed to succeed without a network; deleting an account is a *server* act, and the
+     * only proof it happened is the server saying so. So the order is fixed: call the API,
+     * and clear the stored tokens **only** once it has confirmed.
+     *
+     * Clearing them first — or on failure — would hand the lifter an app that looks deleted
+     * while the account, and every byte of the backup under it, is still there, with no
+     * session left to try again with. A failure here therefore leaves this device exactly as
+     * it was: still signed in, still able to retry.
+     */
+    suspend fun deleteAccount(): Result<Unit>
+
     /** Reads the stored session at startup. Null when there is nothing to restore. */
     suspend fun restoreSession(): AuthSession?
 
@@ -141,6 +156,15 @@ interface CloudSyncStatusRepository {
 
     /** Runs a sync now and waits for it. Used by the SYNC NOW button. */
     suspend fun syncNow(): Result<Unit>
+
+    /**
+     * Drops every scheduled sync, one-off and periodic.
+     *
+     * Needed by account deletion, which is about to empty the local database: a background
+     * pass waking up halfway through the wipe would read a half-cleared state and try to
+     * reconcile it against an account that no longer exists.
+     */
+    suspend fun cancelScheduledSync()
 }
 
 /**

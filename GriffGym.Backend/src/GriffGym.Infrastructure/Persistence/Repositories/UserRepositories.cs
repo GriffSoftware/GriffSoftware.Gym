@@ -57,12 +57,24 @@ internal sealed class UserRepository(GriffGymDbContext context)
                 user => user.NormalizedEmail == normalizedEmail && user.DeletedAtUtc == null,
                 cancellationToken);
 
+    public Task<string?> FindSecurityStampAsync(Guid id, CancellationToken cancellationToken) =>
+        context.Set<UserRecord>()
+            .AsNoTracking()
+            .Where(user => user.Id == id && user.DeletedAtUtc == null)
+            .Select(user => (string?)user.SecurityStamp)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public void Add(User user)
     {
         var record = UserMapper.ToRecord(user);
         context.Set<UserRecord>().Add(record);
         Track(user, record);
     }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken) =>
+        await context.Set<UserRecord>()
+            .Where(user => user.Id == id)
+            .ExecuteDeleteAsync(cancellationToken) > 0;
 }
 
 internal sealed class RefreshTokenRepository(GriffGymDbContext context)
@@ -103,4 +115,13 @@ internal sealed class RefreshTokenRepository(GriffGymDbContext context)
         context.Set<RefreshTokenRecord>().Add(record);
         Track(token, record);
     }
+
+    /// <summary>
+    /// Every session, not just the live ones: a revoked or expired row still records that this
+    /// account existed and which devices it was used from.
+    /// </summary>
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        context.Set<RefreshTokenRecord>()
+            .Where(token => token.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 }

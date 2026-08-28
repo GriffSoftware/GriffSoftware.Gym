@@ -159,4 +159,14 @@ internal sealed class WorkoutSessionRepository(GriffGymDbContext context)
         context.Set<WorkoutSessionRecord>().Add(record);
         Track(session, record);
     }
+
+    /// <summary>
+    /// One statement; <c>exercise_log</c> and <c>set_log</c> follow by cascade. Sessions go
+    /// first when an account is deleted, so the <c>SET NULL</c> links they hold to cycles and
+    /// templates never have to be written out on the way to being deleted anyway.
+    /// </summary>
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        context.Set<WorkoutSessionRecord>()
+            .Where(session => session.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 }

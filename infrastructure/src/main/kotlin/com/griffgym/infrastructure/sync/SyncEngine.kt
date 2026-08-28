@@ -62,6 +62,21 @@ internal class SyncEngine @Inject constructor(
      */
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
+    /**
+     * Runs [block] with no sync pass able to start or still running.
+     *
+     * For the one caller that does not sync but must not overlap with syncing: emptying the
+     * local database, on sign-out and on account deletion. Cancelling the WorkManager jobs
+     * first is necessary but not sufficient — cancellation is cooperative and asynchronous, so
+     * a pass that is already inside `pushPendingChanges` keeps going until it notices, and its
+     * metadata writes can land *after* the wipe has committed. The wipe would then leave a
+     * remnant of a deleted account's data behind, which is precisely what it exists to prevent.
+     *
+     * Taking the same lock the passes take is the whole fix: the wipe waits for a pass in
+     * flight to finish, and no pass can begin until the wipe has committed.
+     */
+    suspend fun <T> withSyncHeldOff(block: suspend () -> T): T = syncLock.withLock { block() }
+
     /** Runs [block] under the sync lock while reporting that a pass is in flight. */
     private suspend fun <T> syncing(block: suspend () -> T): T = syncLock.withLock {
         _isSyncing.value = true

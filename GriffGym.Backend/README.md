@@ -228,6 +228,11 @@ linking it to an existing password account with the same, Google-verified, email
 
 `docs/API.md` walks through the flows.
 
+`DELETE /api/v1/users/me` permanently deletes the signed-in lifter's account and everything it
+owns — a genuine hard delete, the one exception to the tombstone model the rest of the API uses
+for deletions (see `docs/ARCHITECTURE.md`). An access token is refused from the moment the account
+it names is gone, checked on every request rather than revoked outright.
+
 ---
 
 ## API documentation

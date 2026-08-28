@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<LogoutAllSessionsUseCase>();
 
         services.AddScoped<GetCurrentUserUseCase>();
+        services.AddScoped<DeleteCurrentUserAccountUseCase>();
 
         services.AddScoped<GetReferenceMaxesUseCase>();
         services.AddScoped<UpdateReferenceMaxUseCase>();

@@ -40,7 +40,17 @@ internal class CloudBackupRepositoryImpl @Inject constructor(
      *
      * The cloud copy is untouched — this is not deleting an account, and signing back in
      * restores everything. What it prevents is the next person to pick up the phone finding
-     * somebody else's training history sitting in it.
+     * somebody else's training history sitting in it. Account deletion uses the same wipe,
+     * where the cloud copy has already gone.
+     *
+     * Held off against syncing rather than merely run after the workers are cancelled.
+     * WorkManager cancellation is asynchronous and cooperative, so "cancelled" does not mean
+     * "stopped": a pass already in flight carries on until it notices, and its writes would
+     * otherwise be free to land after the wipe committed — leaving exactly the remnant this is
+     * supposed to remove. The wipe itself is one Room transaction; the lock is what keeps that
+     * transaction from racing a pass that is still finishing.
      */
-    override suspend fun clearLocalAccountData() = localStateWriter.clearLocalTrainingData()
+    override suspend fun clearLocalAccountData() = syncEngine.withSyncHeldOff {
+        localStateWriter.clearLocalTrainingData()
+    }
 }

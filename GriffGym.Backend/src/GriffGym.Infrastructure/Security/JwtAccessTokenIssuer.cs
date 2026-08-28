@@ -12,12 +12,6 @@ namespace GriffGym.Infrastructure.Security;
 internal sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> options, IClock clock)
     : IAccessTokenIssuer
 {
-    /// <summary>
-    /// The claim carrying the user's security stamp. Present so that a future password change
-    /// can invalidate tokens already in the wild instead of waiting for them to expire.
-    /// </summary>
-    public const string SecurityStampClaim = "sstamp";
-
     private readonly JwtOptions _options = options.Value;
 
     public AccessToken Issue(User user)
@@ -37,7 +31,9 @@ internal sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> options, IClock 
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email.Value),
             new(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString()),
-            new(SecurityStampClaim, user.SecurityStamp),
+            // Checked on every authenticated request. A token whose stamp no longer matches an
+            // existing account is refused rather than honoured until it expires.
+            new(GriffGymClaims.SecurityStamp, user.SecurityStamp),
         };
 
         var token = new JwtSecurityToken(

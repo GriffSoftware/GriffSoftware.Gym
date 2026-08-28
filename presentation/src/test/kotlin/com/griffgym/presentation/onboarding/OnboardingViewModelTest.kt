@@ -326,6 +326,10 @@ class OnboardingViewModelTest {
         override suspend fun markOnboardingCompleted() {
             completed = true
         }
+
+        override suspend fun clearOnboardingCompleted() {
+            completed = false
+        }
     }
 
     /** Everything setup never calls. Delegating keeps the test double to what it tests. */

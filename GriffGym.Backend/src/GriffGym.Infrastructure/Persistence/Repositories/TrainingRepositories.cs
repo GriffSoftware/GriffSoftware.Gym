@@ -50,6 +50,17 @@ internal sealed class ExerciseRepository(GriffGymDbContext context)
         context.Set<ExerciseRecord>().Add(record);
         Track(exercise, record);
     }
+
+    /// <summary>
+    /// Only safe once nothing prescribes these movements any more. <c>exercise_template</c>
+    /// references <c>exercise</c> with <c>RESTRICT</c>, so running this before the plans are
+    /// gone raises a foreign key violation rather than quietly leaving rows behind — which is
+    /// the behaviour worth having, and is why account deletion removes the plans first.
+    /// </summary>
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        context.Set<ExerciseRecord>()
+            .Where(exercise => exercise.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 }
 
 internal sealed class ReferenceMaxRepository(GriffGymDbContext context)
@@ -89,6 +100,11 @@ internal sealed class ReferenceMaxRepository(GriffGymDbContext context)
         context.Set<ReferenceMaxRecord>().Add(record);
         Track(referenceMax, record);
     }
+
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        context.Set<ReferenceMaxRecord>()
+            .Where(referenceMax => referenceMax.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 }
 
 internal sealed class TrainingCycleRepository(GriffGymDbContext context)
@@ -182,4 +198,14 @@ internal sealed class TrainingCycleRepository(GriffGymDbContext context)
         context.Set<TrainingCycleRecord>().Add(record);
         Track(cycle, record);
     }
+
+    /// <summary>
+    /// One statement; PostgreSQL cascades it down through program, weeks, workout templates,
+    /// exercise templates and planned sets. Loading a few years of plans into memory to delete
+    /// them row by row would be the same outcome at a far worse price.
+    /// </summary>
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        context.Set<TrainingCycleRecord>()
+            .Where(cycle => cycle.UserId == userId)
+            .ExecuteDeleteAsync(cancellationToken);
 }

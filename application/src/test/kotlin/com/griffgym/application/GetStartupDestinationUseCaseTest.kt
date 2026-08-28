@@ -123,6 +123,8 @@ private class StubAuthRepository(private val failRestore: Boolean) : AuthReposit
     override suspend fun loginWithGoogle(idToken: String) =
         Result.failure<AuthSession>(UnsupportedOperationException())
     override suspend fun logout(): Result<Unit> = Result.success(Unit)
+    override suspend fun deleteAccount(): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
     override suspend fun restoreSession(): AuthSession? =
         if (failRestore) error("token unreadable") else AuthSession("user-1", "lifter@example.com")
     override fun observeSessionExpired(): Flow<Boolean> = flowOf(false)

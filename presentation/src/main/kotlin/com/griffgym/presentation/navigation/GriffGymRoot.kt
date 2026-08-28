@@ -52,6 +52,7 @@ fun GriffGymRoot(
 
         StartupUiState.Ready -> GriffGymApp(
             onSignedOut = viewModel::onSignedOut,
+            onAccountDeleted = viewModel::onAccountDeleted,
             modifier = modifier,
         )
     }

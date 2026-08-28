@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
@@ -257,7 +259,16 @@ internal fun AccountBackAction(onBack: () -> Unit, modifier: Modifier = Modifier
     }
 }
 
-/** The dialog container used across the account flow. Flat, bordered, no elevation. */
+/**
+ * The dialog container used across the account flow. Flat, bordered, no elevation.
+ *
+ * Scrolls when it has to. Most of these dialogs are three lines and a pair of buttons and will
+ * never come near the edge of a screen, but the account-deletion one lists seven things it is
+ * about to destroy — and on a short device, or at a large font scale, that is enough to push
+ * the buttons past the bottom. A dialog whose CONTINUE and CANCEL are off-screen is not a
+ * cosmetic problem: it is a lifter trapped in a confirmation they cannot answer either way,
+ * on the one screen in the app where being unable to say no matters most.
+ */
 @Composable
 internal fun AccountDialogSurface(content: @Composable ColumnScope.() -> Unit) {
     val colors = GriffGymTheme.colors
@@ -266,6 +277,7 @@ internal fun AccountDialogSurface(content: @Composable ColumnScope.() -> Unit) {
             .fillMaxWidth()
             .background(colors.surface)
             .border(GriffGymTheme.dimens.borderWidth, colors.outlineStrong)
+            .verticalScroll(rememberScrollState())
             .padding(20.dp),
         content = content,
     )
@@ -311,6 +323,15 @@ internal fun StackedDialogActions(
     onSecondary: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * Separate because the two buttons are not always gated by the same thing.
+     *
+     * Where the primary is disabled until some condition is met — a phrase typed, a field
+     * filled — the way *out* of the dialog must stay open, or a lifter who changes their
+     * mind is left looking at two dead buttons. It defaults to [enabled] so the dialogs
+     * whose pair genuinely rises and falls together are unaffected.
+     */
+    secondaryEnabled: Boolean = enabled,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -326,7 +347,7 @@ internal fun StackedDialogActions(
             text = secondaryText,
             onClick = onSecondary,
             modifier = Modifier.fillMaxWidth(),
-            enabled = enabled,
+            enabled = secondaryEnabled,
         )
     }
 }

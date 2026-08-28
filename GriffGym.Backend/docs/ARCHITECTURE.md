@@ -263,6 +263,23 @@ Explicit filtering was chosen over EF global query filters: a filter on a princi
 required dependents produces a model-level warning and surprising behaviour, and being able to see
 the predicate at the call site is worth more than the brevity.
 
+### The exception: deleting an account is a real `DELETE`
+
+`DeleteCurrentUserAccountUseCase` does not set `deleted_at_utc`. It removes the row. This is a
+deliberate departure from the tombstone rule above, not an oversight: the tombstone model exists
+so that a device that was offline when a *change* happened can still be told about it later, but
+account deletion has no such device to inform — deleting the account is exactly what stops any
+device from asking the server about it again. A soft-deleted account sitting in the active
+database would also mean the endpoint whose entire purpose is "let a lifter get their data out of
+the system" did not actually do that.
+
+The deletion runs inside one transaction, in an order forced by a foreign key rather than chosen
+for tidiness: `exercise_template.exercise_id` is `ON DELETE RESTRICT`, so a training cycle's
+program has to be removed before the exercise catalogue can be, or PostgreSQL rejects the delete
+with `23503`. Workout sessions, cycles, the catalogue, reference maxes and refresh tokens are
+removed in that order, and the `user` row last, so that a failure at any point rolls back with the
+account intact rather than orphaning rows that no longer have an owner.
+
 ---
 
 ## Ownership
@@ -312,8 +329,15 @@ A token that was already exchanged being presented again means two parties hold 
 Which one is the thief is unknowable, so both are signed out. Sessions are per device — a lifter
 holds several at once — so this is a real cost, and it is the right one.
 
-Access tokens carry a `sstamp` claim holding the user's security stamp, so a future password
-change can invalidate tokens already in the wild instead of waiting for them to expire.
+Access tokens carry a `sstamp` claim holding the user's security stamp. A JWT is a signed
+statement frozen at the moment it was minted — the framework's own checks (signature, issuer,
+audience, expiry) verify nothing about whether the account is still there. `AccessTokenValidation`
+closes that gap with an `OnTokenValidated` hook that runs on every authenticated request: it looks
+up the account by the token's subject and fails the request if the account is gone or if the
+presented `sstamp` no longer matches the stored one. Account deletion is what this currently
+protects — the account row disappearing is instantly enough to fail the lookup — and the same
+mechanism is what a future password-change feature would use to invalidate tokens already in the
+wild, by rotating the stamp instead of removing the row.
 
 `ClockSkew` is set to zero. The framework's default five minutes quietly extends a fifteen-minute
 access token by a third.

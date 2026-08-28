@@ -132,7 +132,13 @@ internal sealed class FakeUserRepository : IUserRepository
     public Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken) =>
         Task.FromResult(_users.Any(user => user.Email.Normalized == normalizedEmail));
 
+    public Task<string?> FindSecurityStampAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(_users.FirstOrDefault(user => user.Id == id)?.SecurityStamp);
+
     public void Add(User user) => _users.Add(user);
+
+    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(_users.RemoveAll(user => user.Id == id) > 0);
 }
 
 internal sealed class FakeRefreshTokenRepository : IRefreshTokenRepository
@@ -152,6 +158,9 @@ internal sealed class FakeRefreshTokenRepository : IRefreshTokenRepository
             [.. _tokens.Where(token => token.UserId == userId && token.IsActiveAt(now))]);
 
     public void Add(RefreshToken token) => _tokens.Add(token);
+
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult(_tokens.RemoveAll(token => token.UserId == userId));
 }
 
 internal sealed class FakeReferenceMaxRepository : IReferenceMaxRepository
@@ -171,6 +180,9 @@ internal sealed class FakeReferenceMaxRepository : IReferenceMaxRepository
         Task.FromResult(_maxes.FirstOrDefault(max => max.UserId == userId && max.Lift == lift));
 
     public void Add(ReferenceMax referenceMax) => _maxes.Add(referenceMax);
+
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult(_maxes.RemoveAll(max => max.UserId == userId));
 }
 
 internal sealed class FakeExerciseRepository : IExerciseRepository
@@ -191,6 +203,9 @@ internal sealed class FakeExerciseRepository : IExerciseRepository
             [.. _exercises.Where(exercise => exercise.UserId == userId && ids.Contains(exercise.Id))]);
 
     public void Add(Exercise exercise) => _exercises.Add(exercise);
+
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult(_exercises.RemoveAll(exercise => exercise.UserId == userId));
 }
 
 internal sealed class FakeTrainingCycleRepository : ITrainingCycleRepository
@@ -230,6 +245,9 @@ internal sealed class FakeTrainingCycleRepository : ITrainingCycleRepository
         Task.FromResult(_cycles.Any(cycle => cycle.Id == cycleId));
 
     public void Add(TrainingCycle cycle) => _cycles.Add(cycle);
+
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult(_cycles.RemoveAll(cycle => cycle.UserId == userId));
 }
 
 internal sealed class FakeWorkoutSessionRepository : IWorkoutSessionRepository
@@ -300,4 +318,7 @@ internal sealed class FakeWorkoutSessionRepository : IWorkoutSessionRepository
                     group.Count()))]);
 
     public void Add(WorkoutSession session) => _sessions.Add(session);
+
+    public Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken) =>
+        Task.FromResult(_sessions.RemoveAll(session => session.UserId == userId));
 }

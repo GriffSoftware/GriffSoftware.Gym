@@ -13,6 +13,7 @@ import com.griffgym.presentation.cycles.CycleDetailRoute
 import com.griffgym.presentation.cycles.CycleReviewRoute
 import com.griffgym.presentation.cycles.CyclesRoute
 import com.griffgym.presentation.history.HistoryRoute
+import com.griffgym.presentation.account.ProfileRoute
 import com.griffgym.presentation.home.HomeRoute
 import com.griffgym.presentation.stats.StatsRoute
 import com.griffgym.presentation.workout.WorkoutRoute
@@ -21,6 +22,7 @@ import com.griffgym.presentation.workout.WorkoutRoute
 fun GriffGymNavHost(
     navController: NavHostController,
     onSignedOut: () -> Unit,
+    onAccountDeleted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -45,6 +47,18 @@ fun GriffGymNavHost(
                 // graph entirely — the whole main NavHost is torn down, so there is no back
                 // stack left pointing at one lifter's training for the next person to find.
                 onSignedOut = onSignedOut,
+            )
+        }
+
+        // Both of this screen's endings leave through the host, not through the back stack:
+        // signing out clears the account's cached training, and deleting empties the database
+        // outright. Popping back into a graph built over either would show screens backed by
+        // data that no longer exists.
+        composable(Routes.PROFILE) {
+            ProfileRoute(
+                onBack = { navController.popBackStack() },
+                onSignedOut = onSignedOut,
+                onAccountDeleted = onAccountDeleted,
             )
         }
 

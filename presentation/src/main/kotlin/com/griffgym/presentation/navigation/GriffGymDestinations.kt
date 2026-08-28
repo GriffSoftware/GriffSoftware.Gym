@@ -22,6 +22,15 @@ object Routes {
     /** Account and cloud backup. Reached from the drawer, never from a tab. */
     const val ACCOUNT = "account"
 
+    /**
+     * The signed-in lifter's own screen. Reached from the avatar and from nowhere else.
+     *
+     * Deliberately absent from the drawer: [ACCOUNT] is already there, and the avatar routes
+     * to whichever of the two this installation has an answer for. Two entries would be two
+     * doors to what a lifter experiences as one place.
+     */
+    const val PROFILE = "profile"
+
     /** The end-of-cycle decision. Reached from Home, never from a tab. */
     const val CYCLE_REVIEW = "cycles/review"
 

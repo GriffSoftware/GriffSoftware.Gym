@@ -29,4 +29,42 @@ public sealed class UsersController : ControllerBase
 
         return Ok(profile.ToResponse());
     }
+
+    /// <summary>
+    /// Permanently deletes the signed-in lifter's account and everything it owns.
+    ///
+    /// No user id in the route and none in a body: which account goes is read from the access
+    /// token's subject, so this endpoint cannot be pointed at anybody else.
+    ///
+    /// <c>204</c> and nothing else. Returning the deleted account would be handing back a copy
+    /// of the thing the request asked to destroy, and there is no representation of a resource
+    /// that no longer exists worth sending.
+    ///
+    /// Repeating the request is safe. The refresh tokens are gone and the access token stops
+    /// being accepted the moment the account row does, so a second attempt is answered
+    /// <c>401</c> rather than doing anything a second time.
+    /// </summary>
+    [HttpDelete("me")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> DeleteMe(
+        [FromServices] DeleteCurrentUserAccountUseCase useCase,
+        [FromServices] ILogger<UsersController> logger,
+        CancellationToken cancellationToken)
+    {
+        var summary = await useCase.ExecuteAsync(cancellationToken);
+
+        // Worth a line in the log: it is the one operation in this API that destroys data on
+        // purpose, and the counts are the only remaining evidence of what was there.
+        logger.LogInformation(
+            "Deleted account: {Sessions} workout sessions, {Cycles} cycles, {Exercises} " +
+            "exercises, {ReferenceMaxes} reference maxes, {RefreshTokens} refresh tokens",
+            summary.WorkoutSessions,
+            summary.TrainingCycles,
+            summary.Exercises,
+            summary.ReferenceMaxes,
+            summary.RefreshTokens);
+
+        return NoContent();
+    }
 }

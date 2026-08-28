@@ -25,6 +25,7 @@ import com.griffgym.infrastructure.network.dto.WorkoutResponseDto
 import com.griffgym.infrastructure.network.dto.WorkoutSummaryResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -86,6 +87,18 @@ internal interface GriffGymApi {
 
     @GET("api/v1/users/me")
     suspend fun currentUser(): UserResponseDto
+
+    /**
+     * Deletes the account and everything the server holds under it. 204, no body.
+     *
+     * Declared as returning [Unit] rather than `Response<Unit>` for the same reason
+     * [logout] is: Retrofit's own converter handles an empty body for [Unit], and any
+     * non-2xx is raised as a `HttpException` for [safeApiCall] to map — so "the server
+     * confirmed" is the absence of a throw, not a status code the caller has to remember to
+     * check.
+     */
+    @DELETE("api/v1/users/me")
+    suspend fun deleteCurrentUser()
 
     // ---------------------------------------------------------------------------------------
     // State

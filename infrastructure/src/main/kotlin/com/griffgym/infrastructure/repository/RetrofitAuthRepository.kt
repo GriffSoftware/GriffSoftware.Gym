@@ -121,6 +121,30 @@ internal class RetrofitAuthRepository @Inject constructor(
     }
 
     /**
+     * Deletes the account server-side, and forgets this device's credentials **only if that
+     * worked**.
+     *
+     * The exact opposite of [logout], and the asymmetry is the whole point. Signing out is a
+     * local outcome that always happens, so its cleanup lives in a `finally`. Deleting an
+     * account is a remote outcome that may not have happened at all, so its cleanup lives
+     * behind `onSuccess`: clearing the tokens on a failed call would strand the lifter with
+     * an account that still exists, a backup that still exists, and no session left to try
+     * again with.
+     *
+     * A 401 here has already been through
+     * [com.griffgym.infrastructure.network.auth.TokenAuthenticator], which will have tried a
+     * refresh; reaching this line as [com.griffgym.domain.model.GriffGymError.Unauthorized]
+     * means the refresh failed too, and the lifter has to sign in again before anything can
+     * be deleted.
+     */
+    override suspend fun deleteAccount(): Result<Unit> =
+        safeApiCall(errorMapper) { api.deleteCurrentUser() }
+            .onSuccess {
+                tokenStorage.clearTokens()
+                sessionExpired.acknowledge()
+            }
+
+    /**
      * Reads the stored session at startup. Never touches the network: a phone in a basement
      * gym opens to its own training data exactly as fast as one with five bars.
      */

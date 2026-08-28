@@ -234,6 +234,42 @@ means the session really is gone, and only then are the tokens cleared and a
 session-expired signal raised. `AuthSession`, the type visible above infrastructure, carries
 only `userId` and `email` — no token ever leaves this layer.
 
+## Account deletion
+
+`DeleteAccountUseCase` (`application/account/`) is the one irreversible action in the app, and
+its ordering follows from that:
+
+1. Call the server (`AuthRepository.deleteAccount`) and go no further until it confirms the
+   account is gone. A wipe attempted while offline would destroy the lifter's local training
+   while leaving the account and its cloud copy untouched, with no screen left afterwards able
+   to offer either back. A failure here changes nothing locally — there is no "delete once a
+   connection returns", because an unattended deletion is not one anybody agreed to.
+2. Only once the server has answered: cancel the scheduled sync workers, then clear the local
+   training data. That order matters — clearing Room first would leave a window in which a
+   background sync pass wakes up, reads a half-cleared database, and tries to reconcile it
+   against an account that the server has already deleted.
+3. Reset `UserMode` to `Undecided` and clear the onboarding-completed flag, returning the
+   installation to the state it was in before the account existed. The next launch goes through
+   `GetStartupDestinationUseCase` like a fresh install: `ChooseDataMode`, then `Onboarding`.
+
+The last three steps are best-effort and cannot fail the operation as a whole — by the time they
+run, the account is already gone server-side, so reporting failure would tell the lifter their
+data survives when it does not.
+
+`ProfileRoute` reaches this exactly the way `GriffGymRoot` reaches sign-out: through the host,
+not the nav graph, because both endings invalidate everything mounted below the root.
+
+The top bar's avatar (`AvatarDestinationViewModel`) routes on `UserMode` — `Authenticated` opens
+Profile, anything else opens the existing account/sign-in screen — so `DELETE ACCOUNT` is only
+ever reachable when there is an account to delete.
+
+On the server side, `DELETE /api/v1/users/me` (`GriffGym.Backend/docs/API.md`) is a hard delete,
+not the tombstone the rest of that API uses for synchronised records — see
+`GriffGym.Backend/docs/ARCHITECTURE.md` for why account deletion is the deliberate exception to
+that rule. An access token for a deleted account stops being accepted immediately, but this is a
+per-request existence check on sign-in — `AccessTokenValidation` — not token revocation; the JWT
+itself remains a validly-signed, unexpired token until it would have expired anyway.
+
 ## Configuration
 
 The API base URL is a Gradle build setting (`infrastructure/build.gradle.kts`), not a

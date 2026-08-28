@@ -28,6 +28,7 @@ to use the API correctly.
 | | | |
 |---|---|---|
 | `GET` | `/api/v1/users/me` | The signed-in lifter |
+| `DELETE` | `/api/v1/users/me` | 204, permanently deletes the account and everything it owns |
 
 ### Reference maxes
 
@@ -119,6 +120,12 @@ same secret means one of them should not have it, and which one is unknowable. E
 that account is revoked and the lifter has to sign in again everywhere.
 
 `401` from `/refresh` means exactly one thing: send the lifter to the login screen.
+
+An access token is also rejected, before it reaches an endpoint, the moment the account it names
+no longer exists or the token's `sstamp` claim no longer matches the account's current one. This
+is a lookup done on every authenticated request, not revocation of the JWT itself — a validly
+signed, unexpired token that fails this check is still refused. It exists so that deleting an
+account (below) does not leave a working credential alive for the rest of that token's lifetime.
 
 ### Devices
 
@@ -372,6 +379,33 @@ established account stops re-downloading years of data it already has.
 
 ---
 
+## Account deletion
+
+```
+DELETE /api/v1/users/me
+```
+
+Like every other endpoint, this takes no user id — the account is read from the access token's
+`sub` claim. There is no way to ask it to delete anybody else's.
+
+`204 No Content`, no body. Returning the deleted account would be handing back a copy of the
+thing the request just destroyed. Removes, in one transaction, the account and everything it
+owns: workout sessions, training cycles (with their programs, weeks, templates and planned sets),
+the exercise catalogue, reference maxes, and every refresh token for that account, on every
+device. All of it or none of it.
+
+This is the one exception to the tombstone model the rest of this API uses (see "State restore"
+and `docs/ARCHITECTURE.md`): rows are actually removed, not marked `deleted_at_utc`, because the
+point of the endpoint is that the data is genuinely gone from the database, not merely hidden from
+future reads.
+
+The access token used to call it — and every other access token issued to that account — stops
+being accepted immediately, checked per request rather than revoked outright (see "Authentication
+flow"). Repeating the request is safe: the second call finds no account and answers `401`, not a
+second `204`.
+
+---
+
 ## Errors
 
 | Status | When |
@@ -423,6 +457,7 @@ login wait achieves nothing, and refusing it outright is the signal a client sho
 3. **Send `expectedVersion` on writes** and use the `version` from the previous response.
 4. **Persist a rotated refresh token immediately**, before doing anything else with the response.
 5. **Treat `404` as "gone or not mine"**, never as "the endpoint is wrong".
-6. **Records are never hard-deleted.** A future delta feed will report removals as tombstones, so
-   do not assume absence means deletion.
+6. **Records are never hard-deleted individually.** A future delta feed will report removals as
+   tombstones, so do not assume absence means deletion. The one exception is deleting the whole
+   account (`DELETE /api/v1/users/me`), which removes everything at once, on purpose.
 7. **Weights and RPE are decimals.** Do not round-trip them through a float.

@@ -158,4 +158,14 @@ interface ReferenceMaxRepository {
 interface OnboardingRepository {
     suspend fun isOnboardingCompleted(): Boolean
     suspend fun markOnboardingCompleted()
+
+    /**
+     * Forgets that setup was ever done, so the next launch offers it again.
+     *
+     * Only account deletion calls this, and only alongside emptying the training database.
+     * The flag and the data have to be cleared together: a cleared flag over a populated
+     * database sends a lifter through setup on top of a plan they are halfway through, and a
+     * set flag over an empty one drops them onto a Home screen with nothing behind it.
+     */
+    suspend fun clearOnboardingCompleted()
 }

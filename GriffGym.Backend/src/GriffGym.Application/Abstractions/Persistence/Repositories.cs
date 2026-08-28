@@ -22,7 +22,26 @@ public interface IUserRepository
 
     Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The security stamp of an account that still exists, or <c>null</c> when it does not.
+    ///
+    /// A projection rather than <see cref="FindByIdAsync"/> because this runs on every
+    /// authenticated request: it answers "is the account this token names still real, and is
+    /// this token still current for it?" and materialising the aggregate to read one string
+    /// would put a wholly unnecessary cost on the hot path.
+    /// </summary>
+    Task<string?> FindSecurityStampAsync(Guid id, CancellationToken cancellationToken);
+
     void Add(User user);
+
+    /// <summary>
+    /// Removes the account row itself. Returns whether there was one to remove.
+    ///
+    /// A hard delete, not a tombstone. Tombstones exist so that an offline device can be told a
+    /// record went away; nobody is left to tell, and leaving the row behind would mean the
+    /// lifter asked for their data to be erased and it was not.
+    /// </summary>
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 }
 
 public interface IRefreshTokenRepository
@@ -35,6 +54,12 @@ public interface IRefreshTokenRepository
         CancellationToken cancellationToken);
 
     void Add(RefreshToken token);
+
+    /// <summary>
+    /// Deletes every session this account holds, revoked and expired ones included. Returns the
+    /// number of rows removed.
+    /// </summary>
+    Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 public interface IReferenceMaxRepository
@@ -44,6 +69,9 @@ public interface IReferenceMaxRepository
     Task<ReferenceMax?> FindForUserAsync(Guid userId, LiftType lift, CancellationToken cancellationToken);
 
     void Add(ReferenceMax referenceMax);
+
+    /// <summary>Deletes every reference max this account owns. Returns the row count.</summary>
+    Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 public interface IExerciseRepository
@@ -56,6 +84,15 @@ public interface IExerciseRepository
         CancellationToken cancellationToken);
 
     void Add(Exercise exercise);
+
+    /// <summary>
+    /// Deletes this account's movement catalogue. Returns the row count.
+    ///
+    /// The catalogue is per lifter, not a shared dictionary, so there is nothing global to
+    /// protect here — but it is still the last of an account's tables that can go, because a
+    /// plan that prescribes a movement holds a <c>RESTRICT</c> reference to it.
+    /// </summary>
+    Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 public interface ITrainingCycleRepository
@@ -78,6 +115,13 @@ public interface ITrainingCycleRepository
     Task<bool> ExistsAsync(Guid cycleId, CancellationToken cancellationToken);
 
     void Add(TrainingCycle cycle);
+
+    /// <summary>
+    /// Deletes every cycle this account owns, and with it the whole plan hanging off each one —
+    /// program, weeks, workout templates, exercise templates and planned sets, by cascade.
+    /// Returns the number of cycles removed, not the size of the tree.
+    /// </summary>
+    Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 public interface IWorkoutSessionRepository
@@ -118,6 +162,12 @@ public interface IWorkoutSessionRepository
         CancellationToken cancellationToken);
 
     void Add(WorkoutSession session);
+
+    /// <summary>
+    /// Deletes this account's entire training log — every session, and by cascade every exercise
+    /// log and set log inside it. Returns the number of sessions removed.
+    /// </summary>
+    Task<int> DeleteAllForUserAsync(Guid userId, CancellationToken cancellationToken);
 }
 
 /// <summary>Completed sessions in one week of one cycle.</summary>
