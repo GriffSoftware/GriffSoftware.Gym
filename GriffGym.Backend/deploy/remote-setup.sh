@@ -116,8 +116,15 @@ cd "$APP_DIR"
 log "Building images"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build
 
+# --build is not optional, and the reason is worth spelling out: `migrate` sits behind a
+# compose profile, so the `build` above skips it, and `run` reuses whatever image already
+# exists rather than rebuilding one. A stale migrate image carries a stale migrations
+# assembly — and EF compares that assembly against __EFMigrationsHistory, finds both lists
+# equally short, prints "the database is already up to date" and exits 0. That is how this
+# deploy shipped new code onto an unmigrated schema, successfully, several times over, until
+# every request touching the `user` table answered 500.
 log "Applying database migrations"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm migrate
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm --build migrate
 
 log "Starting services"
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --remove-orphans

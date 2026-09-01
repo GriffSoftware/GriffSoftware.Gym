@@ -14,7 +14,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Clock
 import javax.inject.Inject
+
+/**
+ * Below this, a "cancellation" cannot have been one: the account picker has not finished
+ * being drawn, let alone been read and refused. Deliberately generous — the cost of being
+ * wrong in this direction is one banner too many, and the cost of being wrong in the other
+ * is a button that does nothing and explains nothing.
+ */
+private const val MINIMUM_PLAUSIBLE_DISMISSAL_MS = 500L
 
 /**
  * The first fork: an account, or this phone and nothing else.
@@ -34,6 +43,7 @@ class DataProtectionViewModel @Inject constructor(
     private val googleLogin: GoogleLoginUseCase,
     private val googleSignInLauncher: GoogleSignInLauncher,
     private val postSignInRouter: PostSignInRouter,
+    private val clock: Clock,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DataProtectionUiState())
@@ -78,18 +88,38 @@ class DataProtectionViewModel @Inject constructor(
 
         _uiState.update { it.copy(isSigningInWithGoogle = true, formError = null) }
         googleJob = viewModelScope.launch {
+            val startedAt = clock.millis()
             googleSignInLauncher.requestIdToken(context)
                 .onSuccess { idToken -> exchange(idToken) }
-                .onFailure { error ->
-                    // A dismissed picker is a decision, not a failure. The screen goes back
-                    // to how it was and says nothing: an error banner for "I changed my
-                    // mind" is how an app teaches people to ignore its error banners.
-                    if (error is GoogleSignInException.Cancelled) {
-                        _uiState.update { it.copy(isSigningInWithGoogle = false) }
-                    } else {
-                        fail(error.toGoogleSignInFailure())
-                    }
-                }
+                .onFailure { error -> report(error, clock.millis() - startedAt) }
+        }
+    }
+
+    /**
+     * A dismissed picker is a decision, not a failure. The screen goes back to how it was and
+     * says nothing: an error banner for "I changed my mind" is how an app teaches people to
+     * ignore its error banners.
+     *
+     * The trap is that Credential Manager reports a refusal it never showed anybody in
+     * exactly the same words as a dismissal — both arrive as
+     * [GoogleSignInException.Cancelled]. A build Google does not recognise, because no
+     * Android OAuth client exists for the key that signed it, is cancelled in a few
+     * milliseconds without a picker ever reaching the screen. Treating that as "I changed my
+     * mind" is what turned this button into a dead one in production: it did nothing, said
+     * nothing, and left no way to tell a misconfiguration from a shrug.
+     *
+     * Nobody dismisses a sheet faster than it can be drawn, so a cancellation that comes back
+     * sooner than [MINIMUM_PLAUSIBLE_DISMISSAL_MS] did not come from the lifter, and is worth
+     * a sentence.
+     */
+    private fun report(error: Throwable, elapsedMillis: Long) {
+        val lifterChangedTheirMind = error is GoogleSignInException.Cancelled &&
+            elapsedMillis >= MINIMUM_PLAUSIBLE_DISMISSAL_MS
+
+        if (lifterChangedTheirMind) {
+            _uiState.update { it.copy(isSigningInWithGoogle = false) }
+        } else {
+            fail(error.toGoogleSignInFailure())
         }
     }
 

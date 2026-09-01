@@ -38,6 +38,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import org.robolectric.RobolectricTestRunner
 
 /**
@@ -64,6 +69,13 @@ class DataProtectionViewModelTest {
 
     private val context: Context get() = ApplicationProvider.getApplicationContext()
 
+    /**
+     * Advanced by hand rather than tied to the test dispatcher: what the ViewModel measures
+     * is how long Credential Manager held the screen, which is wall-clock time on a phone and
+     * has nothing to do with how long the coroutine was suspended.
+     */
+    private lateinit var clock: AdvanceableClock
+
     private lateinit var launcher: FakeGoogleSignInLauncher
     private lateinit var auth: FakeAuthRepository
     private lateinit var userMode: RecordingUserModeRepository
@@ -74,6 +86,7 @@ class DataProtectionViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
+        clock = AdvanceableClock(Instant.parse("2026-03-04T09:30:00Z"))
         launcher = FakeGoogleSignInLauncher()
         auth = FakeAuthRepository()
         userMode = RecordingUserModeRepository()
@@ -136,6 +149,8 @@ class DataProtectionViewModelTest {
     @Test
     fun `a dismissed account picker says nothing and goes nowhere`() = runTest(dispatcher) {
         launcher.result = Result.failure(GoogleSignInException.Cancelled())
+        // Long enough to have been read and refused, which is what makes it a decision.
+        launcher.whileShown = { clock.advance(Duration.ofSeconds(2)) }
         val viewModel = viewModel()
         val steps = collectSteps(viewModel)
 
@@ -147,6 +162,32 @@ class DataProtectionViewModelTest {
         assertFalse(viewModel.uiState.value.isSigningInWithGoogle)
         assertTrue("the token exchange must not be attempted", auth.googleIdTokens.isEmpty())
     }
+
+    /**
+     * The failure that shipped to production: Google refuses a build it does not recognise —
+     * no Android OAuth client for the signing key — and Credential Manager reports it as a
+     * cancellation, instantly, without ever drawing the picker. Nobody dismissed anything, so
+     * the screen must not pretend somebody did.
+     */
+    @Test
+    fun `a cancellation too fast to have been seen is reported, not swallowed`() =
+        runTest(dispatcher) {
+            launcher.result = Result.failure(GoogleSignInException.Cancelled())
+            launcher.whileShown = { clock.advance(Duration.ofMillis(12)) }
+            val viewModel = viewModel()
+            val steps = collectSteps(viewModel)
+
+            viewModel.signInWithGoogle(context)
+            advanceUntilIdle()
+
+            assertEquals(
+                AccountMessages.GOOGLE_SIGN_IN_FAILED,
+                viewModel.uiState.value.formError,
+            )
+            assertTrue(steps.isEmpty())
+            assertFalse(viewModel.uiState.value.isSigningInWithGoogle)
+            assertTrue("the token exchange must not be attempted", auth.googleIdTokens.isEmpty())
+        }
 
     /** A phone with no Google account, or a build with no client id, says so. */
     @Test
@@ -239,6 +280,7 @@ class DataProtectionViewModelTest {
             resolvePostSignInAction = ResolvePostSignInActionUseCase(cloud, localData),
             initializeAuthenticatedSession = InitializeAuthenticatedSessionUseCase(userMode, sync),
         ),
+        clock = clock,
     )
 
     /** Collected for the whole test rather than awaited, so "nothing was emitted" is testable. */
@@ -263,9 +305,30 @@ class DataProtectionViewModelTest {
         var invocations: Int = 0
             private set
 
+        /** Stands in for the time the account picker spent on screen. */
+        var whileShown: () -> Unit = {}
+
         override suspend fun requestIdToken(context: Context): Result<String> {
             invocations++
+            whileShown()
             return held?.await() ?: result
+        }
+    }
+
+    /**
+     * The smallest clock that can be pushed forward. `Clock.fixed` is what the rest of the
+     * suite uses, but a fixed clock cannot express "the picker was up for two seconds".
+     */
+    private class AdvanceableClock(private var now: Instant) : Clock() {
+
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+
+        override fun withZone(zone: ZoneId): Clock = this
+
+        override fun instant(): Instant = now
+
+        fun advance(duration: Duration) {
+            now = now.plus(duration)
         }
     }
 
